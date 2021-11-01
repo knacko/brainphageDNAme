@@ -1,3 +1,23 @@
+#------------------------------------------------------------------------------------------------------------
+#' Loads reference CpGs from files. Will download and save them if the files are not present
+#' @param dir string; the \code{\link{file.path}} of the directory to save/read the files
+#' @param genome string; the desired genome. This should be available from BSgenome
+#' @return data.table; the reference CpGs in bedgraph format
+#' @export
+load_ref_cpgs = function(dir, genome = c("BSgenome.Hsapiens.UCSC.hg19", "BSgenome.Hsapiens.UCSC.hg38", "BSgenome.Mmusculus.UCSC.mm10")) {  # BSgenome::available.genomes()) {
+  
+  genome = .validateArg(genome,load_ref_cpgs)
+  
+  name = gsub(".*\\.(.*)$","\\1",genome)
+  
+  cpg_file = paste0(dir,name,"_cpgs.rds")
+  if (!file.exists(cpg_file)) {
+    saveRDS(scMethrix::extract_CpGs(ref_genome = genome), file = cpg_file)
+  }
+  
+  return(readRDS(cpg_file))
+}
+
 #' Starts an internal stopwatch
 #' @details Save the current time to later use for split/lap and overall times
 #' @return NULL
