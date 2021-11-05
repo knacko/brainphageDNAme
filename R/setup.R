@@ -1,4 +1,4 @@
-list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData")
+list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) {
   install.packages(new.packages)
@@ -102,6 +102,8 @@ soft.to.bed <- function(in_file, out_dir, regex = "(.*)", verbose = TRUE) {
 #' @return data.table; the reference CpGs in bedgraph format
 #' @export
 ratioset.to.bed <- function(RSet, out_dir, regex = "(.*)", verbose = TRUE) {
+  
+  #if (verbose) message("Converting ratioset to bed...",start_time())
   
   GRSet <- minfi::mapToGenome(RSet)
   
