@@ -2,7 +2,7 @@ home_dir <- "D:/Git/thesis_data/"
 cpg_dir <- "D:/Git/sampleData/ref_cpgs/"
 chain_dir <- "D:/Git/thesis_data/chains/"
 
-cell_names <- c("NKcell","Neutrophil","Monocyte","Glia","Microglia","Eosinophil","CD4Tcell","CD8Tcell")
+cell_types <- c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood")
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE121483
@@ -22,17 +22,24 @@ chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
 
-files = list.files(bed_dir, full.names=TRUE)
 ref_cpgs = load_ref_cpgs(dir = cpg_dir, genome = "BSgenome.Hsapiens.UCSC.hg19")
 colData = read.table(file = colData_file, sep = '\t', header = TRUE)
 
-GSE121483 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
-          chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = length(files))
+files = list.files(bed_dir, full.names=TRUE)
+liftover_beds(files = files,chain = chain_file)
 
-GSE121483 <- scMethrix::liftover_CpGs(scm = GSE121483, chain = chain_file,target_genome="hg38")
+# Compare colData and data
+expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
 
-save_HDF5_scMethrix(GSE121483, h5_dir=exp_dir,replace=TRUE)
-GSE121483 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
+# GSE121483 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
+#           chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = length(files))
+# 
+# GSE121483 <- scMethrix::liftover_CpGs(scm = GSE121483, chain = chain_file,target_genome="hg38")
+# 
+# save_HDF5_scMethrix(GSE121483, h5_dir=exp_dir,replace=TRUE)
+# GSE121483 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE35069
@@ -43,6 +50,7 @@ GSE121483 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
 # Genome: hg19
 # Platform: Illumina 450k
 
+# Setup dirs
 base_dir = paste0(home_dir,"GSE35069/")
 raw_dir = paste0(base_dir,"raw/")
 in_file = list.files(raw_dir, full.names=TRUE)
@@ -51,20 +59,30 @@ exp_dir = paste0(base_dir,"exp/")
 colData_file = paste0(base_dir,"colData/GSE35069_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
+# Get colData
 
+
+
+# Get data
 soft.to.bed(in_file,bed_dir,"(.*)")#_.*_.*")
-
 files = list.files(bed_dir, full.names=TRUE)
-ref_cpgs = load_ref_cpgs(dir = cpg_dir, genome = "BSgenome.Hsapiens.UCSC.hg19")
+liftover_beds(files = files,chain = chain_file)
+
+# Compare colData and data
 colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(setequal(get_sample_name(files),colData$Sample))
+expect_true(all(colData$Cell %in% cell_types))
 
-GSE35069 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
-                                 chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 30)
-
-GSE35069 <- scMethrix::liftover_CpGs(scm = GSE35069, chain = chain_file,target_genome="hg38")
-
-save_HDF5_scMethrix(GSE35069, h5_dir=exp_dir,replace=TRUE)
-GSE35069 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
+# 
+# 
+# 
+# GSE35069 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
+#                                  chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 30)
+# 
+# GSE35069 <- scMethrix::liftover_CpGs(scm = GSE35069, chain = chain_file,target_genome="hg38")
+# 
+# save_HDF5_scMethrix(GSE35069, h5_dir=exp_dir,replace=TRUE)
+# GSE35069 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
 
 
 #------------------------------------------------------------------------------------------------------------
@@ -76,6 +94,7 @@ GSE35069 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
 # Genome: hg19
 # Platform: Illumina 450k
 
+# Setup dirs
 base_dir = paste0(home_dir,"GSE88824/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
@@ -83,19 +102,47 @@ exp_dir = paste0(base_dir,"exp/")
 colData_file = paste0(base_dir,"colData/GSE88824_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
+# Get colData
+soft <- GEOquery::getGEOfile("GSE88824")
+soft <- GEOquery::getGEO(filename=soft)
+cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+colData <- data.table(Sample = names(soft@gsms), Cell = cell)
+remove_idx <- str_detect(colData$Cell,"^Case.*|.*WBC$")
+remove_id <- colData$Sample[remove_idx]
+colData <- colData[!remove_idx,]
+colData$Cell <- str_remove(colData$Cell,"Control-")
+colData$Cell <- str_replace(colData$Cell,"CD19B","Bcell")
+colData$Cell <- str_replace(colData$Cell,"CD4T","CD4Tcell")
+colData$Cell <- str_replace(colData$Cell,"CD8T","CD8Tcell")
+data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names = FALSE)
+
+# Get data
 idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
-
 files = list.files(bed_dir, full.names=TRUE)
-ref_cpgs = load_ref_cpgs(dir = cpg_dir, genome = "BSgenome.Hsapiens.UCSC.hg19")
+file.remove(files[get_sample_name(files) %in% remove_id])
+files = list.files(bed_dir, full.names=TRUE)
+liftover_beds(files = files,chain = chain_file)
+
+# Compare colData and data
+files = list.files(bed_dir, full.names=TRUE)
 colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(setequal(get_sample_name(files),colData$Sample))
+expect_true(all(colData$Cell %in% cell_types))
 
-GSE88824 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
-                                  chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 20)
 
-GSE88824 <- scMethrix::liftover_CpGs(scm = GSE88824, chain = chain_file,target_genome="hg38")
 
-save_HDF5_scMethrix(GSE88824, h5_dir=exp_dir,replace=TRUE)
-GSE88824 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
+
+# 
+# 
+# 
+# 
+# GSE88824 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
+#                                   chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 20)
+# 
+# GSE88824 <- scMethrix::liftover_CpGs(scm = GSE88824, chain = chain_file,target_genome="hg38")
+# 
+# save_HDF5_scMethrix(GSE88824, h5_dir=exp_dir,replace=TRUE)
+# GSE88824 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE166844
@@ -113,8 +160,7 @@ exp_dir = paste0(base_dir,"exp/")
 colData_file = paste0(base_dir,"colData/GSE166844_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
-ref_cpgs = load_ref_cpgs(dir = cpg_dir, genome = "BSgenome.Hsapiens.UCSC.hg19")
-
+# Get data and colData
 soft <- GEOquery::getGEOfile("GSE166844")
 soft <- GEOquery::getGEO(filename=soft)
 
@@ -147,15 +193,23 @@ RSet = RatioSet(Beta = meths)
 annotation(RSet) = annotation(minfiDataEPIC::RGsetEPIC)
 
 ratioset.to.bed(RSet, out_dir = bed_dir, regex = "(.*)")
-
 files = list.files(bed_dir, full.names=TRUE)
-GSE166844 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
-                                  chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 30)
+liftover_beds(files = files,chain = chain_file)
 
-GSE166844 <- scMethrix::liftover_CpGs(scm = GSE166844, chain = chain_file,target_genome="hg38")
+# Compare colData and data
+files = list.files(bed_dir, full.names=TRUE)
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(setequal(get_sample_name(files),colData$Sample))
+expect_true(all(colData$Cell %in% cell_types))
 
-save_HDF5_scMethrix(GSE166844, h5_dir=exp_dir,replace=TRUE)
-GSE166844 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
+# files = list.files(bed_dir, full.names=TRUE)
+# GSE166844 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
+#                                   chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 30)
+# 
+# GSE166844 <- scMethrix::liftover_CpGs(scm = GSE166844, chain = chain_file,target_genome="hg38")
+# 
+# save_HDF5_scMethrix(GSE166844, h5_dir=exp_dir,replace=TRUE)
+# GSE166844 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE110554
@@ -175,6 +229,7 @@ mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
 colData_file = paste0(base_dir,"colData/GSE110554_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
+# Get colData
 soft <- GEOquery::getGEOfile("GSE110554")
 soft <- GEOquery::getGEO(filename=soft)
 
