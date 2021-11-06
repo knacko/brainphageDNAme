@@ -2,7 +2,34 @@ home_dir <- "D:/Git/thesis_data/"
 cpg_dir <- "D:/Git/sampleData/ref_cpgs/"
 chain_dir <- "D:/Git/thesis_data/chains/"
 
-cell_types <- c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood")
+cell_types <- c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Endothelial","Immune")
+
+#------------------------------------------------------------------------------------------------------------
+# GEO: 
+# Types: 
+# Paper: 
+# GEO: 
+# Citation: 
+# Genome: hg19
+# Platform: 
+
+GEO = ""
+base_dir = paste0(home_dir,GEO,"/")
+raw_dir = paste0(base_dir,"raw/")
+bed_dir = paste0(base_dir,"bed/")
+exp_dir = paste0(base_dir,"exp/")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
+chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+
+# Get colData
+
+# Get data
+
+# Compare colData and data
+expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE121483
@@ -13,17 +40,16 @@ cell_types <- c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","
 # Genome: hg19
 # Platform: Illumina Epic
 
-base_dir = paste0(home_dir,"GSE121483/")
+GEO = "GSE121483"
+base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
-colData_file = paste0(base_dir,"colData/GSE121483_colData.tsv")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
-
-ref_cpgs = load_ref_cpgs(dir = cpg_dir, genome = "BSgenome.Hsapiens.UCSC.hg19")
-colData = read.table(file = colData_file, sep = '\t', header = TRUE)
 
 files = list.files(bed_dir, full.names=TRUE)
 liftover_beds(files = files,chain = chain_file)
@@ -51,12 +77,13 @@ expect_true(all(colData$Cell %in% cell_types))
 # Platform: Illumina 450k
 
 # Setup dirs
-base_dir = paste0(home_dir,"GSE35069/")
+GEO = "GSE35069"
+base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
-in_file = list.files(raw_dir, full.names=TRUE)
 bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
-colData_file = paste0(base_dir,"colData/GSE35069_colData.tsv")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get colData
@@ -95,15 +122,17 @@ expect_true(all(colData$Cell %in% cell_types))
 # Platform: Illumina 450k
 
 # Setup dirs
-base_dir = paste0(home_dir,"GSE88824/")
+GEO = "GSE88824"
+base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
-colData_file = paste0(base_dir,"colData/GSE88824_colData.tsv")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get colData
-soft <- GEOquery::getGEOfile("GSE88824")
+soft <- GEOquery::getGEOfile(GEO)
 soft <- GEOquery::getGEO(filename=soft)
 cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
 colData <- data.table(Sample = names(soft@gsms), Cell = cell)
@@ -161,7 +190,7 @@ colData_file = paste0(base_dir,"colData/GSE166844_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get data and colData
-soft <- GEOquery::getGEOfile("GSE166844")
+soft <- GEOquery::getGEOfile(GEO)
 soft <- GEOquery::getGEO(filename=soft)
 
 ids <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$description)
@@ -220,17 +249,17 @@ expect_true(all(colData$Cell %in% cell_types))
 # Genome: hg19
 # Platform: Illumina EPIC
 
-base_dir = paste0(home_dir,"GSE110554/")
+GEO = "GSE110554"
+base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
 mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
-
-colData_file = paste0(base_dir,"colData/GSE110554_colData.tsv")
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get colData
-soft <- GEOquery::getGEOfile("GSE110554")
+soft <- GEOquery::getGEOfile(GEO)
 soft <- GEOquery::getGEO(filename=soft)
 
 colData <- sapply(names(soft@gsms), function(gsm) {
@@ -247,7 +276,7 @@ data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names 
 ###### ^ This needs manual editting for cell names
 
 # Get data
-supp_file <- GEOquery::getGEOSuppFiles("GSE110554", makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
+supp_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
 supp_file <- rownames(supp_file)
 supp_files <- untar(tarfile = supp_file, list=TRUE)
 supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
@@ -274,14 +303,17 @@ expect_true(all(colData$Cell %in% cell_types))
 # Genome: hg19
 # Platform: Bulk WGBS
 
-base_dir = paste0(home_dir,"GSE96612/")
+GEO = "GSE96612"
+base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
 mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
+chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get colData
-soft <- GEOquery::getGEOfile("GSE96612")
+soft <- GEOquery::getGEOfile(GEO)
 soft <- GEOquery::getGEO(filename=soft)
 cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
 colData <- data.table(Sample = names(soft@gsms), Cell = cell, ID = cell)
@@ -294,7 +326,7 @@ colData$ID <- str_remove(colData$ID," \\(bisulfite-Seq\\)")
 data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names = FALSE)
 
 # Get data
-supp_files <- GEOquery::getGEOSuppFiles("GSE96612", makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*sorted.CpG_unstranded.txt.gz")
+supp_files <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*sorted.CpG_unstranded.txt.gz")
 sapply(supp_files, function(file) GEOquery::gunzip(file, remove=TRUE))
 file.remove(supp_files)
 files = list.files(raw_dir, full.names=TRUE)
@@ -332,14 +364,17 @@ expect_true(all(colData$Cell %in% cell_types))
 # Genome: hg19
 # Platform: 
 
-base_dir = paste0(home_dir,"GSE151506/")
+GEO = "GSE151506"
+base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
 mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
+chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get colData
-soft <- GEOquery::getGEOfile("GSE151506")
+soft <- GEOquery::getGEOfile(GEO)
 soft <- GEOquery::getGEO(filename=soft)
 cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$characteristics_ch1)
 colData <- data.table(Sample = names(soft@gsms), Cell = cell, ID = cell)
@@ -354,29 +389,7 @@ colData = read.table(file = colData_file, sep = '\t', header = TRUE)
 expect_true(all(colData$Cell %in% cell_types))
 
 
-#------------------------------------------------------------------------------------------------------------
-# GEO: 
-# Types: 
-# Paper: 
-# GEO: 
-# Citation: 
-# Genome: hg19
-# Platform: 
 
-base_dir = paste0(home_dir,"GSE96612/")
-raw_dir = paste0(base_dir,"raw/")
-bed_dir = paste0(base_dir,"bed/")
-exp_dir = paste0(base_dir,"exp/")
-mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
-
-# Get colData
-
-# Get data
-
-# Compare colData and data
-expect_true(setequal(get_sample_name(files),colData$Sample))
-colData = read.table(file = colData_file, sep = '\t', header = TRUE)
-expect_true(all(colData$Cell %in% cell_types))
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE144804
@@ -387,14 +400,17 @@ expect_true(all(colData$Cell %in% cell_types))
 # Genome: hg19
 # Platform: Illumina EPIC
 
-base_dir = paste0(home_dir,"GSE144804/")
+GEO = "GSE144804"
+base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
 mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
+chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get colData
-soft <- GEOquery::getGEOfile("GSE144804")
+soft <- GEOquery::getGEOfile(GEO)
 soft <- GEOquery::getGEO(filename=soft)
 cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
 colData <- data.table(Sample = names(soft@gsms), Cell = cell)
@@ -403,7 +419,7 @@ remove_gsm <- colData$Sample[remove_idx]
 colData <- colData[!remove_idx,]
 
 # Get data
-supp_file <- GEOquery::getGEOSuppFiles("GSE144804", makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
+supp_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
 supp_file <- rownames(supp_file)
 supp_files <- untar(tarfile = supp_file, list=TRUE)
 supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
@@ -421,3 +437,48 @@ expect_true(setequal(get_sample_name(files),colData$Sample))
 colData = read.table(file = colData_file, sep = '\t', header = TRUE)
 expect_true(all(colData$Cell %in% cell_types))
 
+#------------------------------------------------------------------------------------------------------------
+# GEO: GSE98203
+# Types: Neuron
+# Paper: https://pubmed.ncbi.nlm.nih.gov/28556790/
+# GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE98203
+# Citation: Kozlenkov A, Jaffe AE, Timashpolsky A, Apontes P et al. DNA Methylation Profiling of Human Prefrontal Cortex Neurons in Heroin Users Shows Significant Difference between Genomic Contexts of Hyper- and Hypomethylation and a Younger Epigenetic Age. Genes (Basel) 2017 May 30;8(6). PMID: 28556790
+# Genome: hg19
+# Platform: Illumina 450k
+
+GEO = "GSE98203"
+base_dir = paste0(home_dir,GEO,"/")
+raw_dir = paste0(base_dir,"raw/")
+bed_dir = paste0(base_dir,"bed/")
+exp_dir = paste0(base_dir,"exp/")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
+chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+
+# Get colData
+soft <- GEOquery::getGEOfile(GEO)
+soft <- GEOquery::getGEO(filename=soft)
+cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+colData <- data.table(Sample = names(soft@gsms), Cell = cell)
+remove_idx <- str_detect(colData$Cell,".*_TNF$")
+remove_gsm <- colData$Sample[remove_idx]
+colData <- colData[!remove_idx,]
+
+# Get data
+supp_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
+supp_file <- rownames(supp_file)
+supp_files <- untar(tarfile = supp_file, list=TRUE)
+supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
+supp_files <- untar(tarfile = supp_file, exdir = raw_dir, files = supp_files)
+file.remove(supp_file)
+sapply(supp_files, function(file) GEOquery::gunzip(file, remove=TRUE))
+files <- list.files(raw_dir, full.names=TRUE)
+file.remove(files[which(rowSums(sapply(remove_gsm, like, vector = files)) == 1)])
+idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
+files = list.files(bed_dir, full.names=TRUE)
+liftover_beds(files = files,chain = chain_file)
+
+# Compare colData and data
+expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
