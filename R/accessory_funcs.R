@@ -1,3 +1,15 @@
+
+
+
+mkdirs <- function (dirs) {
+  sapply(dirs, function(dir) dir.create(dir, showWarnings = FALSE))
+}
+
+get_sample_name = function(s) {
+  if (!is.character(s)) stop("Must be a string file path")
+  return(tools::file_path_sans_ext(basename(s)))
+}
+
 #------------------------------------------------------------------------------------------------------------
 #' Loads reference CpGs from files. Will download and save them if the files are not present
 #' @param dir string; the \code{\link{file.path}} of the directory to save/read the files

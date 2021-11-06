@@ -1,4 +1,4 @@
-list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC")
+list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) {
   install.packages(new.packages)
@@ -142,3 +142,23 @@ colbind = function(...) {
   )[]
 }
 
+
+
+chain <- "D:/Git/thesis_data/chains/hg19ToHg38.over.chain"
+
+liftover_beds <- function (files, chain) {
+  
+  for(file in files) {
+    
+    bed <- data.table::fread(file,col.names = c("chr","start","end","strand","beta"),key=c("chr","start"))
+    bed <- makeGRangesFromDataFrame(bed,keep.extra.columns = T)
+    
+    ch = rtracklayer::import.chain(chain)
+    bed <- unlist(rtracklayer::liftOver(bed,ch))
+    bed <- subset(as.data.frame(bed), select = -c(width))
+    
+    data.table::fwrite(bed, paste0(file), append = FALSE, sep = "\t", row.names = FALSE, 
+                       col.names = FALSE, quote = FALSE)
+    
+  }
+}
