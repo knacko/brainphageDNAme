@@ -241,29 +241,85 @@ colData <- sapply(names(soft@gsms), function(gsm) {
 })
 
 colData <- data.frame(Sample = names(colData), Cell = colData,row.names = NULL)
-
 remove_mix <- colData$Sample[which(colData$Cell == "MIX")]
 colData <- colData[-(which(colData$Cell == "MIX")),]
+data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names = FALSE) 
+###### ^ This needs manual editting for cell names
 
-data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names = FALSE) ###### This needs manual editting for cell names
-
+# Get data
 supp_file <- GEOquery::getGEOSuppFiles("GSE110554", makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
 supp_file <- rownames(supp_file)
-
 supp_files <- untar(tarfile = supp_file, list=TRUE)
 supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
-
 supp_files <- untar(tarfile = supp_file, exdir = raw_dir, files = supp_files)
 file.remove(supp_file)
-
 sapply(supp_files, function(file) GEOquery::gunzip(file, remove=TRUE))
-
 mix_files <- list.files(raw_dir, full.names=TRUE)
 file.remove(mix_files[which(rowSums(sapply(remove_mix, like, vector = mix_files)) == 1)])
-
 idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
-
 files = list.files(bed_dir, full.names=TRUE)
 liftover_beds(files = files,chain = chain_file)
 
+# Compare colData and data
 expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
+
+#------------------------------------------------------------------------------------------------------------
+# GEO: GSE96612
+# Types: Neuron, glia
+# Paper: https://pubmed.ncbi.nlm.nih.gov/30643296/
+# GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE96612
+# Citation: Rizzardi LF, Hickey PF, Rodriguez DiBlasi V, Tryggvadóttir R et al. Neuronal brain-region-specific DNA methylation and chromatin accessibility are associated with neuropsychiatric trait heritability. Nat Neurosci 2019 Feb;22(2):307-316. PMID: 30643296
+# Genome: hg19
+# Platform: Bulk WGBS
+
+base_dir = paste0(home_dir,"GSE96612/")
+raw_dir = paste0(base_dir,"raw/")
+bed_dir = paste0(base_dir,"bed/")
+exp_dir = paste0(base_dir,"exp/")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+
+# Get colData
+soft <- GEOquery::getGEOfile("GSE96612")
+soft <- GEOquery::getGEO(filename=soft)
+cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+colData <- data.table(Sample = names(soft@gsms), Cell = cell, ID = cell)
+remove_idx <- str_detect(colData$Cell,".*_neg .*|.*_pos .*",negate = TRUE)
+#remove_id <- colData$Sample[remove_idx]
+colData <- colData[!remove_idx,]
+colData$Cell <- str_replace(colData$Cell,".*_neg .*","Glia")
+colData$Cell <- str_replace(colData$Cell,".*_pos .*","Neuron")
+colData$ID <- str_remove(colData$ID," \\(bisulfite-Seq\\)")
+data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names = FALSE)
+
+# Get data
+supp_files <- GEOquery::getGEOSuppFiles("GSE96612", makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*sorted.CpG_unstranded.txt.gz")
+sapply(supp_files, function(file) GEOquery::gunzip(file, remove=TRUE))
+file.remove(supp_files)
+files = list.files(raw_dir, full.names=TRUE)
+meth_mtx <- raw_files[files %like% "M_matrix"]
+cov_mtx <- raw_files[files %like% "Cov_matrix"]
+
+rrng <- fread(meth_mtx,select=c(1:3))
+
+for (i in 4+which(!remove_idx)) {
+  
+  message("Parsing ",i)
+  
+  meth <- fread(meth_mtx,select=i)
+  cov <- fread(cov_mtx,select=i)
+  beta <- meth/cov
+  name <- colData$Sample[which(colData$ID %like% names(beta))]
+  
+  data.table::fwrite(cbind(rrng,beta), paste0(bed_dir,name,".bedgraph"), append = FALSE, sep = "\t", row.names = FALSE,
+                     col.names = FALSE, quote = FALSE)
+}
+
+liftover_beds(files = files,chain = chain_file)
+
+# Compare colData and data
+expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
+
