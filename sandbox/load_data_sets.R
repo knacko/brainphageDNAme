@@ -323,3 +323,101 @@ expect_true(setequal(get_sample_name(files),colData$Sample))
 colData = read.table(file = colData_file, sep = '\t', header = TRUE)
 expect_true(all(colData$Cell %in% cell_types))
 
+#------------------------------------------------------------------------------------------------------------
+# GEO: GSE151506
+# Types: tumor and immune
+# Paper: 
+# GEO: 
+# Citation: 
+# Genome: hg19
+# Platform: 
+
+base_dir = paste0(home_dir,"GSE151506/")
+raw_dir = paste0(base_dir,"raw/")
+bed_dir = paste0(base_dir,"bed/")
+exp_dir = paste0(base_dir,"exp/")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+
+# Get colData
+soft <- GEOquery::getGEOfile("GSE151506")
+soft <- GEOquery::getGEO(filename=soft)
+cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$characteristics_ch1)
+colData <- data.table(Sample = names(soft@gsms), Cell = cell, ID = cell)
+
+
+
+# Get data
+
+# Compare colData and data
+expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
+
+
+#------------------------------------------------------------------------------------------------------------
+# GEO: 
+# Types: 
+# Paper: 
+# GEO: 
+# Citation: 
+# Genome: hg19
+# Platform: 
+
+base_dir = paste0(home_dir,"GSE96612/")
+raw_dir = paste0(base_dir,"raw/")
+bed_dir = paste0(base_dir,"bed/")
+exp_dir = paste0(base_dir,"exp/")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+
+# Get colData
+
+# Get data
+
+# Compare colData and data
+expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
+
+#------------------------------------------------------------------------------------------------------------
+# GEO: GSE144804
+# Types: Endothelial
+# Paper: https://pubmed.ncbi.nlm.nih.gov/32231389/
+# GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE144804
+# Citation: Rhead B, Shao X, Quach H, Ghai P et al. Global expression and CpG methylation analysis of primary endothelial cells before and after TNFa stimulation reveals gene modules enriched in inflammatory and infectious diseases and associated DMRs. PLoS One 2020;15(3):e0230884. PMID: 32231389
+# Genome: hg19
+# Platform: Illumina EPIC
+
+base_dir = paste0(home_dir,"GSE144804/")
+raw_dir = paste0(base_dir,"raw/")
+bed_dir = paste0(base_dir,"bed/")
+exp_dir = paste0(base_dir,"exp/")
+mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
+
+# Get colData
+soft <- GEOquery::getGEOfile("GSE144804")
+soft <- GEOquery::getGEO(filename=soft)
+cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+colData <- data.table(Sample = names(soft@gsms), Cell = cell)
+remove_idx <- str_detect(colData$Cell,".*_TNF$")
+remove_gsm <- colData$Sample[remove_idx]
+colData <- colData[!remove_idx,]
+
+# Get data
+supp_file <- GEOquery::getGEOSuppFiles("GSE144804", makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
+supp_file <- rownames(supp_file)
+supp_files <- untar(tarfile = supp_file, list=TRUE)
+supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
+supp_files <- untar(tarfile = supp_file, exdir = raw_dir, files = supp_files)
+file.remove(supp_file)
+sapply(supp_files, function(file) GEOquery::gunzip(file, remove=TRUE))
+files <- list.files(raw_dir, full.names=TRUE)
+file.remove(files[which(rowSums(sapply(remove_gsm, like, vector = files)) == 1)])
+idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
+files = list.files(bed_dir, full.names=TRUE)
+liftover_beds(files = files,chain = chain_file)
+
+# Compare colData and data
+expect_true(setequal(get_sample_name(files),colData$Sample))
+colData = read.table(file = colData_file, sep = '\t', header = TRUE)
+expect_true(all(colData$Cell %in% cell_types))
+
