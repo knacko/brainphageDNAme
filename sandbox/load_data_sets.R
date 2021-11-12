@@ -376,7 +376,7 @@ chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 # Get colData
 soft <- GEOquery::getGEOfile(GEO)
 soft <- GEOquery::getGEO(filename=soft)
-cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$characteristics_ch1)
+cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$type)
 colData <- data.table(Sample = names(soft@gsms), Cell = cell, ID = cell)
 
 
@@ -482,3 +482,46 @@ liftover_beds(files = files,chain = chain_file)
 expect_true(setequal(get_sample_name(files),colData$Sample))
 colData = read.table(file = colData_file, sep = '\t', header = TRUE)
 expect_true(all(colData$Cell %in% cell_types))
+
+
+#------------------------------------------------------------------------------------------------------------
+# GEO: GSE151506
+# Types: 
+# Paper: 
+# GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE151506
+# Citation: 
+# Genome: hg19
+# Platform: 
+
+GEO = "GSE151506"
+base_dir = paste0(home_dir,GEO,"/")
+raw_dir = paste0(base_dir,"raw/")
+bed_dir = paste0(base_dir,"bed/")
+exp_dir = paste0(base_dir,"exp/")
+colData_dir = paste0(base_dir,"colData/")
+mkdirs(c(base_dir,raw_dir,bed_dir,exp_dir,colData_dir))
+colData_file = paste0(colData_dir,GEO,"_colData.tsv")
+chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+
+soft <- GEOquery::getGEOfile(GEO)
+soft <- GEOquery::getGEO(filename=soft)
+
+cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+
+
+
+
+
+gsm2file <- data.table::fread("D:/Git/thesis_data/GSE151506/colData/GSE151506_SRRs_and_original_rawfile_names.txt",
+                                blank.lines.skip = TRUE, sep = "|", header = FALSE)
+row_idx <-  which(apply(gsm2file, 1, function(x) str_detect(x,"_r1:")))
+gsm <- unlist(gsm2file[row_idx,])
+gsm <- str_remove(gsm,"SRR.*; ")
+gsm <- str_remove(gsm,"_r1:")
+file.name <- unlist(gsm2file[row_idx+1,])
+file.name <- str_remove(file.name,".fastq.*")
+gsm2file = data.table(GSM = gsm,file = file.name)    
+
+
+
+
