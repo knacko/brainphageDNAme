@@ -503,24 +503,38 @@ mkdirs(c(base_dir,raw_dir,bed_dir,exp_dir,colData_dir))
 colData_file = paste0(colData_dir,GEO,"_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
-soft <- GEOquery::getGEOfile(GEO)
-soft <- GEOquery::getGEO(filename=soft)
 
-cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+scm <- scMethrix::load_HDF5_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
 
-
-
+scm <- readRDS("D:/Git/thesis_data/GSE151506/bin/scm_bin_prom.rds")
+scm <- bin_scMethrix(scm,regions=reduce(rowRanges(scm)),bin_size = NULL)
 
 
-gsm2file <- data.table::fread("D:/Git/thesis_data/GSE151506/colData/GSE151506_SRRs_and_original_rawfile_names.txt",
-                                blank.lines.skip = TRUE, sep = "|", header = FALSE)
-row_idx <-  which(apply(gsm2file, 1, function(x) str_detect(x,"_r1:")))
-gsm <- unlist(gsm2file[row_idx,])
-gsm <- str_remove(gsm,"SRR.*; ")
-gsm <- str_remove(gsm,"_r1:")
-file.name <- unlist(gsm2file[row_idx+1,])
-file.name <- str_remove(file.name,".fastq.*")
-gsm2file = data.table(GSM = gsm,file = file.name)    
+scm <- mask_by_sample(scm,low_threshold = 20)
+scm <- mask_by_variance(scm,low_threshold = 0.1)
+scm <- remove_uncovered(scm)
+
+
+
+# 
+# soft <- GEOquery::getGEOfile(GEO)
+# soft <- GEOquery::getGEO(filename=soft)
+# 
+# cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+# 
+# 
+# 
+# 
+# 
+# gsm2file <- data.table::fread("D:/Git/thesis_data/GSE151506/colData/GSE151506_SRRs_and_original_rawfile_names.txt",
+#                                 blank.lines.skip = TRUE, sep = "|", header = FALSE)
+# row_idx <-  which(apply(gsm2file, 1, function(x) str_detect(x,"_r1:")))
+# gsm <- unlist(gsm2file[row_idx,])
+# gsm <- str_remove(gsm,"SRR.*; ")
+# gsm <- str_remove(gsm,"_r1:")
+# file.name <- unlist(gsm2file[row_idx+1,])
+# file.name <- str_remove(file.name,".fastq.*")
+# gsm2file = data.table(GSM = gsm,file = file.name)    
 
 
 
