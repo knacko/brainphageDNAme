@@ -1,6 +1,3 @@
-
-
-
 mkdirs <- function (dirs) {
   sapply(dirs, function(dir) dir.create(dir, showWarnings = FALSE))
 }
@@ -9,6 +6,41 @@ get_sample_name = function(s) {
   if (!is.character(s)) stop("Must be a string file path")
   return(tools::file_path_sans_ext(basename(s)))
 }
+
+
+keepMcols <- function(gr,op,col) {
+
+  gr <- sort(gr)
+  out <- op(gr)
+  
+  overlaps <- as.data.table(findOverlaps(gr,out))
+  
+  if (length(gr) > length(out)) {
+    overlaps[, `:=` (mcols = unlist(mcols(gr)[col]))]
+    overlaps <- overlaps[, .(mcols = paste(mcols,collapse=",")), by = .(subjectHits)]
+    mcols(out)$ID <- unlist(overlaps[["mcols"]])
+    colnames(mcols(out)) = col
+  } else {
+    mcols(out)[col] <- mcols(gr)[col][overlaps$queryHits,]
+  }
+
+  return(out)
+}
+
+corner <- function(mtx, n=30) {
+  mtx <- mtx[1:n,1:n]
+  colnames(mtx) <- NULL
+  row.names(mtx) <- NULL
+  mtx
+}
+
+headless <- function(mtx, n=5) {
+  mtx <- mtx[1:n,]
+  colnames(mtx) <- NULL
+  row.names(mtx) <- NULL
+  mtx
+}
+
 
 #------------------------------------------------------------------------------------------------------------
 #' Loads reference CpGs from files. Will download and save them if the files are not present
