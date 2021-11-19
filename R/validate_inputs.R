@@ -1,4 +1,4 @@
-
+#--- .validateArg -------------------------------------------------------------------------------------------
 #' Validates arguments. Allows partial matching.
 #' @details Check the parent function input arguments to see whether the inputted value is part of the set. Will return a formatted error message with the incorrect variable name and all the acceptable inputs.
 #' 
@@ -51,13 +51,14 @@
   return(arg)
 }
 
+#--- .validateAssay -----------------------------------------------------------------------------------------
 #' Validates an assay is in the object. Allows partial pattern.
 #' @details Check the assays in an scMethrix object and partial matches 
 #' @param scm scMethrix; the experiment object
 #' @param assay string; the name of the assay
 #' @param check.absent boolean; Checks if the assay is present
 #' @return string or boolean; if \code{check.absent == T}, the name of the matched assay or error if it doesn't exist. If \code{check_assay == F}, the boolean value for if the assay exists in the experiment
-.validateAssay <- function(scm = NULL,assay = NULL, check.absent = F) {
+.validateAssay <- function(scm = NULL, assay = NULL, check.absent = F) {
   
   #- Input Validation --------------------------------------------------------------------------
   .validateExp(scm)
@@ -69,7 +70,7 @@
     assay <- tryCatch(
       match.arg(arg = assay, choices = SummarizedExperiment::assayNames(scm)),
       error=function(cond) 
-        stop(paste0("Invalid assay. No assay named '",assay,"' found in the experiment '",substitute(scm),"'"), call. = FALSE)
+        stop(paste0("Invalid assay. No assay named '",assay,"' found in the experiment"), call. = FALSE)
     )
     return(invisible(assay))
   } else {
@@ -175,7 +176,7 @@
 #   return(invisible(TRUE))
 # }
 
-
+#--- .validateType ------------------------------------------------------------------------------------------
 .validateType <- function(input = NULL, type=c("Integer","Numeric","Character","String","Boolean","Logical","Vector",
                                                "List","File","Directory","GRanges","GenomicRanges","Function","Null",
                                                "NA","Dataframe","DF","S4","Distance"), throws=T) {
@@ -225,7 +226,7 @@
     } else if (type == "Distance") {
       valid <- is(input,"dist")
     } else {
-      stop("Invalid type with '",type,"'. This type is not supported for validation.")
+      stop("Invalid type with '",type,"'. This type is not supported for validation.", call. = FALSE)
     }
     
     if (valid) {
@@ -243,15 +244,40 @@
   return(invisible(TRUE))
 }
 
-
+#--- .validateExp -------------------------------------------------------------------------------------------
 #' Validates to see if object is a proper scMethrix object
 #' @param scm scMethrix; the experiment object to test
-#' @return invisible(TRUE), if the object is valid. Error if not.
-.validateExp <- function(scm) {
-  if (!is(scm, "scMethrix")) stop(paste0("Invalid scMethrix object supplied for '",substitute(scm),"'"), call. = FALSE)
+#' @param h5_dir string; the directory of an experiment object
+#' @param throws boolean; whether to throw an error on a missing experiment. Will return FALSE on missing otherwise.
+#' @return invisible(TRUE), if the object is valid. Error or FALSE if not.
+.validateExp <- function(scm = NULL, h5_dir = NULL, throws = T) {
+  
+  if (!is.null(h5_dir)) {
+    
+    .validateType(h5_dir,"directory")
+    
+    tryCatch(
+      expr = {
+        scm <- load_scMethrix(h5_dir)
+      },
+      error = function(e){ 
+        if (throws) {stop("Invalid scMethrix object found at ",h5_dir, call. = FALSE)
+        } else {return(invisible(FALSE))}
+      }
+    )
+  }
+  
+  if (!is.null(scm)) {
+    if (!is(scm, "scMethrix")) {
+      if (throws) {stop(paste0("Invalid scMethrix object supplied for '",substitute(scm),"'"), call. = FALSE)
+      } else {return(invisible(FALSE))}
+    }
+  }
+  
   return(invisible(TRUE))
 }
 
+#--- .validateValue -----------------------------------------------------------------------------------------
 #' Validates numeric values based on some experession
 #' @param value numeric; the value to test
 #' @param ... string; the expressions to test
@@ -272,6 +298,7 @@
   return(invisible(TRUE))
 }
 
+#--- .validateThreads ---------------------------------------------------------------------------------------
 #' Validates the number of threads for the session. Windows can only support one thread
 #' @param n_threads numeric; the number of threads
 #' @return integer; 1 if windows, or some number of threads between 1 and parallel::detectCores

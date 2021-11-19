@@ -1,5 +1,7 @@
-mkdirs <- function (dirs) {
-  sapply(dirs, function(dir) dir.create(dir, showWarnings = FALSE))
+mkdirs <- function (...) {
+
+  dirs <- list(...)
+  for (i in 1:length(dirs)) {dir.create(dirs[[i]], showWarnings = FALSE)}
 }
 
 get_sample_name = function(s) {
@@ -7,25 +9,19 @@ get_sample_name = function(s) {
   return(tools::file_path_sans_ext(basename(s)))
 }
 
-
-keepMcols <- function(gr,op,col) {
-
-  gr <- sort(gr)
-  out <- op(gr)
-  
-  overlaps <- as.data.table(findOverlaps(gr,out))
-  
-  if (length(gr) > length(out)) {
-    overlaps[, `:=` (mcols = unlist(mcols(gr)[col]))]
-    overlaps <- overlaps[, .(mcols = paste(mcols,collapse=",")), by = .(subjectHits)]
-    mcols(out)$ID <- unlist(overlaps[["mcols"]])
-    colnames(mcols(out)) = col
-  } else {
-    mcols(out)[col] <- mcols(gr)[col][overlaps$queryHits,]
-  }
-
-  return(out)
+#' A faster version of cbind when trying to combine lists of data.tables
+#' @param ... A list of data.tables with identical # of rows
+#' @return data.table; the cbinded output 
+#' @export
+colbind = function(...) {
+  setDT(
+    unlist(..., recursive = FALSE),
+    check.names = TRUE
+  )[]
 }
+
+
+
 
 corner <- function(mtx, n=30) {
   mtx <- mtx[1:n,1:n]
@@ -67,6 +63,9 @@ load_ref_cpgs = function(dir, genome = c("BSgenome.Hsapiens.UCSC.hg19", "BSgenom
 #' @return NULL
 #' @export
 start_time <- function() {
+  
+  return(NULL)
+  
   assign("time.all", proc.time()["elapsed"], envir=timer.env)
   assign("time.split", proc.time()["elapsed"], envir=timer.env)
   invisible(NULL)
@@ -78,6 +77,9 @@ start_time <- function() {
 #' @return Returns formatted elapsed time since \code{\link{start_time}} or last \code{\link{split_time}}
 #' @export
 split_time <- function() {
+  
+  return("5")
+  
   time <- get("time.split", envir=timer.env)
   if (!is.numeric(time)) {
     warning("start_time() not set. Starting from now.")
@@ -95,6 +97,9 @@ split_time <- function() {
 #' @return Returns formatted elapsed time since \code{\link{start_time}}
 #' @export
 stop_time <- function() {
+  
+  return("5")
+  
   time <- get("time.all", envir=timer.env)
   if (!is.numeric(time)) {
     #warning("start_time() not set")
