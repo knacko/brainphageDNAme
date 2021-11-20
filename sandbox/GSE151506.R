@@ -1,13 +1,46 @@
-scm.big <- scMethrix::load_HDF5_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
-scm.1300 <- subset_scMethrix(scm.big,regions = glm_probes_mani)
+gbm.big <- scMethrix::load_HDF5_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
+gbm.collapsed <- scMethrix::load_HDF5_scMethrix("D:/Git/thesis_data/GSE151506/gbm.collapsed/")
+gbm.collapsed <- subset_scMethrix(gbm.collapsed,regions = disjointWindow(probes.ill[["i450k.hg38"]],10))
+#quickResaveHDF5SummarizedExperiment(scm.big, verbose=FALSE)
 
-summ <- get_region_summary(scm.1300,regions = glm_probes_mani)
 
+# Renaming rows to [Patient]_[Cell number] ------------------------------------------------------------------------
+# 
+# cd <- colData(scm.big.immune)
+# cd$ID <- cd$Patient
+# 
+# for (patient in unique(cd$Patient)) {
+#   row_idx <- which(cd$Patient == patient)
+#   ids <- paste0(cd$Patient[row_idx],"_C",1:length(row_idx))
+#   ids <- str_replace(ids,"MGH","P")
+#   cd$ID[row_idx] <- ids
+# }
+
+# rownames(colData(scm.big.immune)) <- cd$ID
+
+# Collapse non-immune samples -------------------------------------------------------------------------------------
+
+# scm.big.cancer <- scm.big[,colData(scm.big)$Cell != "Immune"]
+# scm.big.cancer <- collapse_samples(scm.big.cancer,colname="Patient",batch_size = 1000000)
+# scm.big.cancer <- scMethrix::save_HDF5_scMethrix(scm.big.cancer,"D:/Git/thesis_data/GSE151506/gbm.cancer.collapsed")
+# scm.big.immune <- scm.big[,colData(scm.big)$Cell == "Immune"]
+# scm.collapsed <- merge_scMethrix(scm.big.cancer,scm.big.immune,by="col")
+# scm.collapsed <- scMethrix::save_HDF5_scMethrix(scm.collapsed,"D:/Git/thesis_data/GSE151506/gbm.collapsed")
+
+
+
+# Dim red the collapsed -------------------------------------------------------------------------------------------
+
+gbm <- bin_scMethrix(gbm.collapsed,regions = disjointWindow(probes.ill[["i450k.hg38"]],1000))
+
+
+#---- Replicate Gaiti data
 
 scm <- readRDS("D:/Git/thesis_data/GSE151506/bin/scm_binned_to_1300_glioma_probes_my_code.rds")
 scm <- readRDS("D:/Git/thesis_data/GSE151506/bin/scm_binned_to_1300_glioma_probes_gaiti_code.rds")
 
-#---- Replicate Gaiti data
+scm.1300 <- subset_scMethrix(scm.big,regions = glm_probes_mani)
+summ <- get_region_summary(scm.1300,regions = glm_probes_mani)
 
 regions = TCGA_HG38_GR
 regions = glm_probes_mani
@@ -16,10 +49,12 @@ scm <- subset_scMethrix(scm.big, regions = regions)
 scm <- bin_scMethrix(scm,regions = regions, bin_size = NULL, batch_size = 100)
 beep()
 
+scm <- subset_scMethrix(scm,regions = glm_probes_mani)
+
 scm <- scm.1056
 #scm <- scm2
 
-#scm <- convert_HDF5_scMethrix(scm)
+scm <- convert_HDF5_scMethrix(scm)
 
 scm <- impute_regions(scm,assay="score",type="kNN",k=5,regions=glm_probes_mani)
 
@@ -38,8 +73,11 @@ plot_dim_red(scm,dim_red = "UMAP",color_anno = "Cell",)
 scm <- dim_red_scMethrix(scm,assay=assay,type="PCA")
 plot_dim_red(scm,dim_red = "PCA",color_anno = "Cell")
 
-scm <- dim_red_scMethrix(scm,assay=assay,type="tsne")
+
+plots <- lapply(c(10,25,50,75,100,125,150,200), function(perp) {
+scm <- dim_red_scMethrix(scm,assay=assay,type="tsne",perplexity=perp)
 plot_dim_red(scm,dim_red = "tSNE",color_anno = "Cell")
+})
 
 scm <- cluster_scMethrix(scm,assay="impute",type="part",n_clusters=3)
 
