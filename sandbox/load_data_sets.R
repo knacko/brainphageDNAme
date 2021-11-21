@@ -2,70 +2,49 @@ home_dir <- "D:/Git/thesis_data/"
 cpg_dir <- "D:/Git/sampleData/ref_cpgs/"
 chain_dir <- "D:/Git/thesis_data/chains/"
 
-cell_types <- c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Endothelial","Immune")
+cell_types <- c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Eosinophil","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","Microglia","Inf.microglia","Inf.macrophage","Treg")
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: 
 # Types: 
 # Paper: 
-# GEO: 
+# GEO link: 
 # Citation: 
 # Genome: hg19
 # Platform: 
-
 GEO = ""
+chain = chains[["hg19ToHg38"]]
+array = "IlluminaHumanMethylation450k"
+annotation = "ilmn12.hg19"
+
+## ---------------------------------------------------------------------------------------------------------
 base_dir = paste0(home_dir,GEO,"/")
-raw_dir = paste0(base_dir,"raw/")
-bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
-mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
-colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
-chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+exp_name = paste0("scm.", GEO)
+assign(exp_name) <- load_HDF5_scMethrix(exp_dir)
 
-# Get colData
-
-# Get data
-
-# Compare colData and data
-expect_true(setequal(get_sample_name(files),colData$Sample))
-colData = read.table(file = colData_file, sep = '\t', header = TRUE)
-expect_true(all(colData$Cell %in% cell_types))
-
-#------------------------------------------------------------------------------------------------------------
-# GEO: GSE121483
-# Types: Microglia-like macrophages
-# Paper: https://pubmed.ncbi.nlm.nih.gov/30451869/
-# GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE121483
-# Citation: Lund H, Pieber M, Parsa R, Han J et al. Competitive repopulation of an empty microglial niche yields functionally distinct subsets of microglia-like cells. Nat Commun 2018 Nov 19;9(1):4845. PMID: 30451869
-# Genome: hg19
-# Platform: Illumina Epic
-
-GEO = "GSE121483"
-base_dir = paste0(home_dir,GEO,"/")
-raw_dir = paste0(base_dir,"raw/")
-bed_dir = paste0(base_dir,"bed/")
-exp_dir = paste0(base_dir,"exp/")
-mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
-colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
-chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
-
-idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
-
-files = list.files(bed_dir, full.names=TRUE)
-liftover_beds(files = files,chain = chain_file)
-
-# Compare colData and data
-expect_true(setequal(get_sample_name(files),colData$Sample))
-colData = read.table(file = colData_file, sep = '\t', header = TRUE)
-expect_true(all(colData$Cell %in% cell_types))
-
-# GSE121483 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
-#           chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = length(files))
-# 
-# GSE121483 <- scMethrix::liftover_CpGs(scm = GSE121483, chain = chain_file,target_genome="hg38")
-# 
-# save_HDF5_scMethrix(GSE121483, h5_dir=exp_dir,replace=TRUE)
-# GSE121483 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
+if (.validateExp(get(exp_name),throw=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  cell[str_detect(cell, "myeloid")] <- "CMP"
+  remove_idx <- which(str_detect(cell, "pulp"))
+  exclude_id <- names(cell[remove_idx])
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  colData <- colData[-remove_idx,,drop=FALSE]
+  stopifnot(all(cell %in% cell_types))
+  
+  # Get data
+  scm <- soft.to.scMethrix(soft = soft, colData = colData, exclude_id = exclude_id)
+  if (!is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
+  scm <- scMethrix::save_scMethrix(scm,dest = exp_name)
+}
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE35069
@@ -75,42 +54,130 @@ expect_true(all(colData$Cell %in% cell_types))
 # Citation: Reinius LE, Acevedo N, Joerink M, Pershagen G et al. Differential DNA methylation in purified human blood cells: implications for cell lineage and studies on disease susceptibility. PLoS One 2012;7(7):e41361. PMID: 22848472
 # Genome: hg19
 # Platform: Illumina 450k
-
-# Setup dirs
 GEO = "GSE35069"
+chain = chains[["hg19ToHg38"]]
+array = "IlluminaHumanMethylation450k"
+annotation = "ilmn12.hg19"
+
+## ---------------------------------------------------------------------------------------------------------
 base_dir = paste0(home_dir,GEO,"/")
-raw_dir = paste0(base_dir,"raw/")
-bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
-mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
-colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
-chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+exp_name = paste0("scm.", GEO)
+assign(exp_name) <- load_HDF5_scMethrix(exp_dir)
 
-# Get colData
+if (.validateExp(get(exp_name),throws=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  cell[str_detect(cell, "WB")] <- "WholeBlood"
+  cell[str_detect(cell, "Gran")] <- "Granulocyte"
+  cell[str_detect(cell, "CD4")] <- "CD4Tcell"
+  cell[str_detect(cell, "CD8")] <- "CD8Tcell"
+  cell[str_detect(cell, "CD14")] <- "Monocyte"
+  cell[str_detect(cell, "CD19")] <- "Bcell"
+  cell[str_detect(cell, "CD56")] <- "NKcell"
+  cell[str_detect(cell, "Neu")] <- "Neutrophil"
+  cell[str_detect(cell, "Eos")] <- "Eosinophil"
+  remove_idx <- which(str_detect(cell, "PBMC"))
+  exclude_id <- names(cell[remove_idx])
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  colData <- colData[-remove_idx,,drop=FALSE]
+  stopifnot(all(colData$cell %in% cell_types))
+  
+  # Get data
+  scm <- soft.to.scMethrix(soft = soft, colData = colData, exclude_id = exclude_id,array = array, annotation = annotation)
+  scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
+  scm <- scMethrix::save_scMethrix(scm,dest = exp_name)
+}
 
+#------------------------------------------------------------------------------------------------------------
+# GEO: GSE49667
+# Types: Treg, CD4Tcell
+# Paper: https://pubmed.ncbi.nlm.nih.gov/23974203/
+# GEO link: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE49667
+# Citation: Zhang Y, Maksimovic J, Naselli G, Qian J et al. Genome-wide DNA methylation analysis identifies hypomethylated genes regulated by FOXP3 in human regulatory T cells. Blood 2013 Oct 17;122(16):2823-36. PMID: 23974203
+# Genome: hg19
+# Platform: 450k
+GEO = "GSE49667"
+chain = chains[["hg19ToHg38"]]
+array = "IlluminaHumanMethylation450k"
+annotation = "ilmn12.hg19"
 
+## ---------------------------------------------------------------------------------------------------------
+base_dir = paste0(home_dir,GEO,"/")
+exp_dir = paste0(base_dir,"exp/")
+exp_name = paste0("scm.", GEO)
 
-# Get data
-soft.to.bed(in_file,bed_dir,"(.*)")#_.*_.*")
-files = list.files(bed_dir, full.names=TRUE)
-liftover_beds(files = files,chain = chain_file)
+if (.validateExp(get(exp_name),throw=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  cell[str_detect(cell, "Treg")] <- "Treg"
+  cell[!str_detect(cell, "Treg")] <- "CD4Tcell"
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  stopifnot(all(colData$cell %in% cell_types))
+  
+  # Get data
+  scm <- soft.to.scMethrix(soft = soft, colData = colData, exclude_id = NULL, array = array, annotation = annotation)
+  if (!is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
+  scm <- scMethrix::save_scMethrix(scm,dest = exp_name)
+}
 
-# Compare colData and data
-colData = read.table(file = colData_file, sep = '\t', header = TRUE)
-expect_true(setequal(get_sample_name(files),colData$Sample))
-expect_true(all(colData$Cell %in% cell_types))
+#------------------------------------------------------------------------------------------------------------
+# GEO: GSE121483
+# Types: Microglia-like macrophages
+# Paper: https://pubmed.ncbi.nlm.nih.gov/30451869/
+# GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE121483
+# Citation: Lund H, Pieber M, Parsa R, Han J et al. Competitive repopulation of an empty microglial niche yields functionally distinct subsets of microglia-like cells. Nat Commun 2018 Nov 19;9(1):4845. PMID: 30451869
+# Genome: hg19
+# Platform: Illumina Epic
+GEO = "GSE121483"
+base_dir = paste0(home_dir,GEO,"/")
+exp_dir = paste0(base_dir,"exp/")
+exp_name = paste0("scm.", GEO)
 
-# 
-# 
-# 
-# GSE35069 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
-#                                  chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 30)
-# 
-# GSE35069 <- scMethrix::liftover_CpGs(scm = GSE35069, chain = chain_file,target_genome="hg38")
-# 
-# save_HDF5_scMethrix(GSE35069, h5_dir=exp_dir,replace=TRUE)
-# GSE35069 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
+## -----------------------------------------------------------------------------------------------------------------
+if (.validateExp(get(exp_name),throw=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  cell[str_detect(cell, "myeloid")] <- "CMP"
+  cell[str_detect(cell, "Granulocyte")] <- "GMP"
+  cell[str_detect(cell, "Ly6C")] <- "Ly6C"
+  cell[str_detect(cell, "Naive")] <- "Microglia"
+  cell[str_detect(cell, "proliferating")] <- "Inf.microglia"
+  cell[str_detect(cell, "CNS")] <- "Inf.macrophage"
+  cell[str_detect(cell, "monocyte")] <- "cMOP"
+  remove_idx <- which(str_detect(cell, "pulp"))
+  exclude_id <- names(cell[remove_idx])
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  colData <- colData[-remove_idx,,drop=FALSE]
+  stopifnot(all(colData$cell %in% cell_types))
 
+  # Get data
+  scm <- soft.to.scMethrix(soft = soft, colData = colData, exclude_id = exclude_id)
+  if (!is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
+  scm <- scMethrix::save_scMethrix(scm,dest = exp_name)
+}
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE88824
@@ -120,58 +187,42 @@ expect_true(all(colData$Cell %in% cell_types))
 # Citation: Kennedy DW, White NM, Benton MC, Fox A et al. Critical evaluation of linear regression models for cell-subtype specific methylation signal from mixed blood cell DNA. PLoS One 2018;13(12):e0208915. PMID: 30571772
 # Genome: hg19
 # Platform: Illumina 450k
-
-# Setup dirs
 GEO = "GSE88824"
+chain = chains[["hg19ToHg38"]]
+array = "IlluminaHumanMethylation450k"
+annotation = "ilmn12.hg19"
+
+## ---------------------------------------------------------------------------------------------------------
 base_dir = paste0(home_dir,GEO,"/")
-raw_dir = paste0(base_dir,"raw/")
-bed_dir = paste0(base_dir,"bed/")
 exp_dir = paste0(base_dir,"exp/")
-mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
-colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
-chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+exp_name = paste0("scm.", GEO)
+assign(exp_name) <- load_scMethrix(exp_dir)
 
-# Get colData
-soft <- GEOquery::getGEOfile(GEO)
-soft <- GEOquery::getGEO(filename=soft)
-cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
-colData <- data.table(Sample = names(soft@gsms), Cell = cell)
-remove_idx <- str_detect(colData$Cell,"^Case.*|.*WBC$")
-remove_id <- colData$Sample[remove_idx]
-colData <- colData[!remove_idx,]
-colData$Cell <- str_remove(colData$Cell,"Control-")
-colData$Cell <- str_replace(colData$Cell,"CD19B","Bcell")
-colData$Cell <- str_replace(colData$Cell,"CD4T","CD4Tcell")
-colData$Cell <- str_replace(colData$Cell,"CD8T","CD8Tcell")
-data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names = FALSE)
-
-# Get data
-idat.to.bed(raw_dir,bed_dir,"(.*)_.*_.*")
-files = list.files(bed_dir, full.names=TRUE)
-file.remove(files[get_sample_name(files) %in% remove_id])
-files = list.files(bed_dir, full.names=TRUE)
-liftover_beds(files = files,chain = chain_file)
-
-# Compare colData and data
-files = list.files(bed_dir, full.names=TRUE)
-colData = read.table(file = colData_file, sep = '\t', header = TRUE)
-expect_true(setequal(get_sample_name(files),colData$Sample))
-expect_true(all(colData$Cell %in% cell_types))
-
-
-
-
-# 
-# 
-# 
-# 
-# GSE88824 <- scMethrix::read_beds(files=files, h5=TRUE, ref_cpgs = ref_cpgs,
-#                                   chr_idx=1, start_idx=2, end_idx=3, beta_idx=5, colData = colData, n_threads=0, batch_size = 20)
-# 
-# GSE88824 <- scMethrix::liftover_CpGs(scm = GSE88824, chain = chain_file,target_genome="hg38")
-# 
-# save_HDF5_scMethrix(GSE88824, h5_dir=exp_dir,replace=TRUE)
-# GSE88824 <- scMethrix::load_HDF5_scMethrix(dir=exp_dir)
+if (.validateExp(get(exp_name),throw=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  remove_idx <- c(which(str_detect(cell, "Case|WBC")))
+  exclude_id <- names(cell[remove_idx])
+  cell <- str_remove(cell,"Control-")
+  cell[str_detect(cell, "CD19B")] <- "Bcell"
+  cell[str_detect(cell, "CD4T")] <- "CD4Tcell"
+  cell[str_detect(cell, "CD8T")] <- "CD8Tcell"
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  colData <- colData[-remove_idx,,drop=FALSE]
+  stopifnot(all(colData$cell %in% cell_types))
+  
+  # Get data
+  scm <- soft.to.scMethrix(soft = soft, colData = colData, exclude_id = exclude_id)
+  if (!is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
+  scm <- scMethrix::save_scMethrix(scm,dest = exp_name)
+}
 
 #------------------------------------------------------------------------------------------------------------
 # GEO: GSE166844
@@ -181,6 +232,52 @@ expect_true(all(colData$Cell %in% cell_types))
 # Citation: Hannon E, Mansell G, Walker E, Nabais MF et al. Assessing the co-variability of DNA methylation across peripheral cells and tissues: Implications for the interpretation of findings in epigenetic epidemiology. PLoS Genet 2021 Mar;17(3):e1009443. PMID: 33739972
 # Genome: hg19
 # Platform: Illumina EPIC
+GEO = "GSE166844"
+chain = chains[["hg19ToHg38"]]
+array = "IlluminaHumanMethylation450k"
+annotation = "ilmn12.hg19"
+
+## ---------------------------------------------------------------------------------------------------------
+base_dir = paste0(home_dir,GEO,"/")
+exp_dir = paste0(base_dir,"exp/")
+exp_name = paste0("scm.", GEO)
+assign(exp_name) <- load_HDF5_scMethrix(exp_dir)
+
+if (.validateExp(get(exp_name),throw=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  cell[str_detect(cell, "Monocyte")] <- "Monocyte"
+  cell[str_detect(cell, "B-cells")] <- "Bcell"
+  cell[str_detect(cell, "CD4")] <- "CD4Tcell"
+  cell[str_detect(cell, "CD8")] <- "CD8Tcell"
+  cell[str_detect(cell, "blood")] <- "WholeBlood"
+  cell[str_detect(cell, "Granulocyte")] <- "Granulocyte"
+  cell[str_detect(cell, "CD8")] <- "CD8Tcell"
+  remove_idx <- which(str_detect(cell, "Nasal|Buccal"))
+  exclude_id <- names(cell[remove_idx])
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  colData <- colData[-remove_idx,,drop=FALSE]
+  stopifnot(all(colData$cell %in% cell_types))
+  
+  # Get data
+  scm <- soft.to.scMethrix(soft = soft, colData = colData, exclude_id = exclude_id)
+  if (!is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
+  scm <- scMethrix::save_scMethrix(scm,dest = exp_name)
+}
+
+
+
+
+
+
+
 
 base_dir = paste0(home_dir,"GSE166844/")
 raw_dir = paste0(base_dir,"raw/")
@@ -250,17 +347,51 @@ expect_true(all(colData$Cell %in% cell_types))
 # Platform: Illumina EPIC
 
 GEO = "GSE110554"
-base_dir = paste0(home_dir,GEO,"/")
-raw_dir = paste0(base_dir,"raw/")
-bed_dir = paste0(base_dir,"bed/")
-exp_dir = paste0(base_dir,"exp/")
-mkdirs(base_dir,raw_dir,bed_dir,exp_dir)
-colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
-chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
+chain = chains[["hg19ToHg38"]]
+array = "IlluminaHumanMethylationEPIC"
+annotation = "ilm10b4.hg19"
 
-# Get colData
-soft <- GEOquery::getGEOfile(GEO)
-soft <- GEOquery::getGEO(filename=soft)
+## ---------------------------------------------------------------------------------------------------------
+base_dir = paste0(home_dir,GEO,"/")
+exp_dir = paste0(base_dir,"exp/")
+exp_name = paste0("scm.", GEO)
+assign(exp_name) <- load_HDF5_scMethrix(exp_dir)
+
+if (.validateExp(get(exp_name),throw=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  cell[str_detect(cell, "WB")] <- "Neutrophil"
+  cell[str_detect(cell, "Th")] <- "CD4Tcell"
+  cell[str_detect(cell, "Mono")] <- "MonocyteNKcell"
+  cell[str_detect(cell, "Tc")] <- "CD8Tcell"
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  remove_idx <- which(str_detect(cell, "pulp"))
+  exclude_id <- names(cell[remove_idx])
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  colData <- colData[-remove_idx,,drop=FALSE]
+  stopifnot(all(cell %in% cell_types))
+
+
+
+
+
+
+
+
+
+
+
+
 
 colData <- sapply(names(soft@gsms), function(gsm) {
   gsm <- soft@gsms[[gsm]]@header$characteristics_ch1
@@ -302,8 +433,62 @@ expect_true(all(colData$Cell %in% cell_types))
 # Citation: Rizzardi LF, Hickey PF, Rodriguez DiBlasi V, Tryggvadóttir R et al. Neuronal brain-region-specific DNA methylation and chromatin accessibility are associated with neuropsychiatric trait heritability. Nat Neurosci 2019 Feb;22(2):307-316. PMID: 30643296
 # Genome: hg19
 # Platform: Bulk WGBS
+GEO = "GSE110554"
+chain = chains[["hg19ToHg38"]]
+array = "IlluminaHumanMethylationEPIC"
+annotation = "ilm10b4.hg19"
 
-GEO = "GSE96612"
+## ---------------------------------------------------------------------------------------------------------
+base_dir = paste0(home_dir,GEO,"/")
+exp_dir = paste0(base_dir,"exp/")
+exp_name = paste0("scm.", GEO)
+assign(exp_name) <- load_HDF5_scMethrix(exp_dir)
+
+if (.validateExp(get(exp_name),throw=F)) {
+  
+  raw_dir = paste0(base_dir,"raw/")
+  mkdirs(base_dir,raw_dir,exp_dir)
+  
+  soft <- GEOquery::getGEOfile(GEO,destdir = raw_dir)
+  soft <- GEOquery::getGEO(filename=soft)
+  
+  # Get colData
+  soft <- GEOquery::getGEOfile(GEO)
+  soft <- GEOquery::getGEO(filename=soft)
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+  colData <- data.table(Sample = names(soft@gsms), Cell = cell, ID = cell)
+  remove_idx <- str_detect(colData$Cell,".*_neg .*|.*_pos .*",negate = TRUE)
+  #remove_id <- colData$Sample[remove_idx]
+  colData <- colData[!remove_idx,]
+  colData$Cell <- str_replace(colData$Cell,".*_neg .*","Glia")
+  colData$Cell <- str_replace(colData$Cell,".*_pos .*","Neuron")
+  colData$ID <- str_remove(colData$ID," \\(bisulfite-Seq\\)")
+  stopifnot(all(cell %in% cell_types))
+  
+  
+  cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  cell[str_detect(cell, "WB")] <- "Neutrophil"
+  cell[str_detect(cell, "Th")] <- "CD4Tcell"
+  cell[str_detect(cell, "Mono")] <- "MonocyteNKcell"
+  cell[str_detect(cell, "Tc")] <- "CD8Tcell"
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  cell[str_detect(cell, "NK")] <- "NKcell"
+  remove_idx <- which(str_detect(cell, "pulp"))
+  exclude_id <- names(cell[remove_idx])
+  colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+  colData <- colData[-remove_idx,,drop=FALSE]
+
+  
+  
+
+
+
+
+
+
+
 base_dir = paste0(home_dir,GEO,"/")
 raw_dir = paste0(base_dir,"raw/")
 bed_dir = paste0(base_dir,"bed/")
@@ -313,16 +498,7 @@ colData_file = paste0(base_dir,"colData/",GEO,"_colData.tsv")
 chain_file = paste0(chain_dir,"hg19ToHg38.over.chain")
 
 # Get colData
-soft <- GEOquery::getGEOfile(GEO)
-soft <- GEOquery::getGEO(filename=soft)
-cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
-colData <- data.table(Sample = names(soft@gsms), Cell = cell, ID = cell)
-remove_idx <- str_detect(colData$Cell,".*_neg .*|.*_pos .*",negate = TRUE)
-#remove_id <- colData$Sample[remove_idx]
-colData <- colData[!remove_idx,]
-colData$Cell <- str_replace(colData$Cell,".*_neg .*","Glia")
-colData$Cell <- str_replace(colData$Cell,".*_pos .*","Neuron")
-colData$ID <- str_remove(colData$ID," \\(bisulfite-Seq\\)")
+
 data.table::fwrite(colData, file=colData_file, quote=FALSE, sep='\t', row.names = FALSE)
 
 # Get data
