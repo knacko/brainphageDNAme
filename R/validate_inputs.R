@@ -30,25 +30,18 @@
   
   name = substitute(arg)
   choices <- eval(formals(parent)[[name]])
+
+  if (ignore.case) {
+    m = stringr::str_detect(tolower(choices),tolower(arg))
+  } else {
+    m = stringr::str_detect(choices,arg)
+  }
   
-  arg <- tryCatch(
-    {
-      if (ignore.case) {
-        m <- match.arg(arg = tolower(arg), choices = tolower(choices))
-        i <- which(tolower(choices) %in% m)
-        choices[i]
-        
-      } else {
-        match.arg(arg = arg, choices = choices)
-      }
-    },
-    error=function(cond) {
-      stop(paste0("Invalid arg input for '",paste(name),"'. Found: '",arg,"'; Must match: '",
-                  paste0(eval(formals(parent)[[name]]), collapse="', '"),"'"), call. = FALSE)
-    }
-  )
+  if (sum(m) != 1) stop(paste0("Invalid arg input for '",paste(name),"'. Found: '",arg,"'; Must match one of: '",
+                paste0(eval(formals(parent)[[name]]), collapse="', '"),"'"), call. = FALSE)
   
-  return(arg)
+
+  return(choices[which(m)])
 }
 
 #--- .validateAssay -----------------------------------------------------------------------------------------
@@ -179,7 +172,7 @@
 #--- .validateType ------------------------------------------------------------------------------------------
 .validateType <- function(input = NULL, type=c("Integer","Numeric","Character","String","Boolean","Logical","Vector",
                                                "List","File","Directory","GRanges","GenomicRanges","Function","Null",
-                                               "NA","Dataframe","DF","S4","Distance"), throws=T) {
+                                               "NA","Dataframe","DF","S4","Distance","Chain","Soft"), throws=T) {
   
   #- Input Validation --------------------------------------------------------------------------
   if (length(type) == length(eval(formals(.validateType)[["type"]]))) {
@@ -225,6 +218,10 @@
       valid <- isS4(input)
     } else if (type == "Distance") {
       valid <- is(input,"dist")
+    } else if (type == "Chain") {
+      valid <- (class(input) == "Chain")
+    } else if (type == "Soft") {
+      valid <- (class(input) == "GSE")
     } else {
       stop("Invalid type with '",type,"'. This type is not supported for validation.", call. = FALSE)
     }

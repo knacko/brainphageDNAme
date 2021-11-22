@@ -23,7 +23,7 @@ if (!exists("chains")) {
 
 # Get pan-glioma probe list (hg19) --------------------------------------------------------------------------------
 file <- "https://api.gdc.cancer.gov/data/d9027b0c-8d24-47ff-98fb-4066852e3ab3"
-filename <- "PanGlioma_MethylationSignatures.xlsx"
+filename <- "D:/Git/thesis_data/methSignatures/PanGlioma_MethylationSignatures.xlsx"
 if(!file.exists(filename)) downloader::download(file,filename)
 
 glm.probelist <- openxlsx::read.xlsx(filename,sheet=1,startRow = 2,
@@ -55,15 +55,21 @@ if (!all(file.exists(file.450k,file.27k,file.EPIC))) {
 readAndRemove <- function(file,array = "450k") {makeGRangesFromDataFrame(remove_bad_probes(
                                  fread(file,sep="\t",header=T),array),keep.extra.columns = T)}
 
-probes.ill <- list("i27k.hg19" = readAndRemove(file.27k),
-               "i450k.hg19" = readAndRemove(file.450k) ,
-               "iEPIC.hg19" = readAndRemove(file.EPIC,"EPIC"),
-               "i27k.hg38" = readAndRemove(func.19to38(file.27k)),
-               "i450k.hg38" = readAndRemove(func.19to38(file.450k)),
-               "iEPIC.hg38" = readAndRemove(func.19to38(file.EPIC)),"EPIC")
+if (!exists("probes.ill")) {
+  probes.ill <- list("i27k.hg19" = readAndRemove(file.27k),
+                 "i450k.hg19" = readAndRemove(file.450k) ,
+                 "iEPIC.hg19" = readAndRemove(file.EPIC,"EPIC"),
+                 "i27k.hg38" = readAndRemove(func.19to38(file.27k)),
+                 "i450k.hg38" = readAndRemove(func.19to38(file.450k)),
+                 "iEPIC.hg38" = readAndRemove(func.19to38(file.EPIC)),"EPIC")
+  
+  
+  probes.ill[["i450k.hg38.win"]] <- disjointWindow(probes.ill[["i450k.hg38"]],window=1000)
+  probes.ill[["i450k.hg38.win.red"]] <- reduceWithMcols(probes.ill[["i450k.hg38.win"]])
+}
 
 rm(file.450k, file.27k, file.EPIC)
 
 
 # Load up various data --------------------------------------------------------------------------------------------
-scm.big <- scMethrix::load_HDF5_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
+scm.big <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
