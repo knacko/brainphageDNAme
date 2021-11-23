@@ -1,5 +1,5 @@
-gbm.big <- scMethrix::load_HDF5_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
-gbm.collapsed <- scMethrix::load_HDF5_scMethrix("D:/Git/thesis_data/GSE151506/gbm.collapsed/")
+gbm.big <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/raw/")
+gbm.collapsed <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/collapsed/")
 gbm.collapsed <- subset_scMethrix(gbm.collapsed,regions = disjointWindow(probes.ill[["i450k.hg38"]],10))
 #quickResaveHDF5SummarizedExperiment(scm.big, verbose=FALSE)
 
@@ -31,7 +31,10 @@ gbm.collapsed <- subset_scMethrix(gbm.collapsed,regions = disjointWindow(probes.
 
 # Dim red the collapsed -------------------------------------------------------------------------------------------
 
-gbm <- bin_scMethrix(gbm.collapsed,regions = disjointWindow(probes.ill[["i450k.hg38"]],1000))
+gbm <- bin_scMethrix(gbm.big,regions = probe.set)
+                       
+                       
+                       #disjointWindow(probes.ill[["i450k.hg38"]],1000))
 
 
 #---- Replicate Gaiti data

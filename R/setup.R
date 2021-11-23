@@ -1,4 +1,4 @@
-list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery","testthat","stringr","IlluminaHumanMethylation450kanno.ilmn12.hg19","IlluminaHumanMethylation27kanno.ilmn12.hg19", "IlluminaHumanMethylationEPICanno.ilm10b4.hg19","openxlsx","AnnotationHub")
+list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery","testthat","stringr","IlluminaHumanMethylation450kanno.ilmn12.hg19","IlluminaHumanMethylation27kanno.ilmn12.hg19", "IlluminaHumanMethylationEPICanno.ilm10b4.hg19","openxlsx","AnnotationHub","future","ComplexHeatmap")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) {
   install.packages(new.packages)
@@ -9,10 +9,14 @@ names(status) <- list.of.packages
 suppressWarnings(if (!all(status)) status[which(status==FALSE)])
 rm(list.of.packages,new.packages,status)
 
+plan(sequential)
+
 source("D:/Git/monobrainDNAme/R/zzz.R")
 source("D:/Git/monobrainDNAme/R/accessory_funcs.R")
 source("D:/Git/monobrainDNAme/R/validate_inputs.R")
 source("D:/Git/monobrainDNAme/R/convert_to_bed.R")
+source("D:/Git/monobrainDNAme/R/feature.select.new.R")
+source("D:/Git/monobrainDNAme/R/file_input.R")
 
 # Get liftover chains ---------------------------------------------------------------------------------------------
 if (!exists("ah")) ah <- AnnotationHub()
@@ -68,8 +72,27 @@ if (!exists("probes.ill")) {
   probes.ill[["i450k.hg38.win.red"]] <- reduceWithMcols(probes.ill[["i450k.hg38.win"]])
 }
 
+file.450k <- "D:/Git/thesis_data/methSignatures/bin.cpgs.450k.hg38.tsv"
+
+if (file.exists(file.450k)) {
+  ref.gen.hg38 <- fread(file.450k)
+} else {
+  ref.gen.hg38 <- extract_CpGs(ref_genome = "BSgenome.Hsapiens.UCSC.hg38")
+  ref.gen.hg38 <- makeGRangesFromDataFrame(ref.gen.hg38)
+  ref.gen.hg38 <- subsetByOverlaps(gr.hg38,probes.ill[["i450k.hg38.win.red"]])
+  ref.gen.hg38 <- as.data.table(ref.gen.hg38)[,-c("width","strand")]
+  setnames(ref.gen.hg38, "seqnames", "chr")
+  fwrite(ref.gen.hg38, file = file.450k)
+}
+
 rm(file.450k, file.27k, file.EPIC)
 
+# Setup the cell type lists ---------------------------------------------------------------------------------------
+cell_types <- list(all = c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Eosinophil","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
+                   immune = c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","Granulocyte","Eosinophil","Treg","Dendritic"),
+                   brain = c("Microglia","Inf.microglia","Inf.macrophage","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm"),
+                   progenitor = c("CMP","GMP","cMOP","HSCb","HSCm","MPPb","MPPm"),
+                   basic = c("CD4Tcell","CD8Tcell","Treg","NKcell","Bcell","Monocyte","Granulocyte","Neutrophil","Eosinophils","Neuron","Glia","Endothelial","Glioma","WholeBlood"))
 
 # Load up various data --------------------------------------------------------------------------------------------
 scm.big <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/exp/")

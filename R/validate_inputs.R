@@ -172,7 +172,7 @@
 #--- .validateType ------------------------------------------------------------------------------------------
 .validateType <- function(input = NULL, type=c("Integer","Numeric","Character","String","Boolean","Logical","Vector",
                                                "List","File","Directory","GRanges","GenomicRanges","Function","Null",
-                                               "NA","Dataframe","DF","S4","Distance","Chain","Soft"), throws=T) {
+                                               "NA","Dataframe","DF","S4","Distance","Chain","Soft"), throws=T, recursive_sub = NULL) {
   
   #- Input Validation --------------------------------------------------------------------------
   if (length(type) == length(eval(formals(.validateType)[["type"]]))) {
@@ -180,65 +180,82 @@
   }
   
   types <- sapply(type,function(type) .validateArg(type,.validateType))
-  # inputs <- input#list(input,NULL) # necessary to avoid iterating through iterable objects (e.g. GRanges)s
+  
+  if (is.null(recursive_sub)) recursive_sub = gsub('"', "'", deparse(substitute(input)))
   
   #- Function code -----------------------------------------------------------------------------
   valid <- F
-  
-  for (type in types) {
-    if (type == "Null") {
-      valid <- is.null(input)
-    }  else if (type == "NA") {
-      valid <- is.na(input)
-    } else if (type == "Integer") {
-      if(is.numeric(input)) valid <- (input == round(input))
-    } else if (type == "Numeric") {
-      valid = is.numeric(input)
-    } else if (type == "Character") {
-      valid = is.character(input) && nchar(input)==1
-    } else if (type == "String") {
-      valid = is.character(input)
-    } else if(type == "Boolean" | type == "Logical"){
-      valid <- is.logical(input)
-    } else if(type == "Vector"){
-      valid <- is.vector(input)
-    } else if(type == "List"){
-      valid <- is.list(input)
-    } else if (type == "File") {
-      valid <- all(file.exists(input))
-    } else if (type == "Directory") {
-      valid <- all(dir.exists(input))
-    } else if(type == "GRanges" | type == "GenomicRanges"){
-      valid <- is(input, "GRanges")
-    } else if (type == "Function") {
-      valid <- is.function(input)
-    } else if (type == "Dataframe" | type == "DF") {
-      valid <- is.data.frame(input)
-    } else if (type == "S4") {
-      valid <- isS4(input)
-    } else if (type == "Distance") {
-      valid <- is(input,"dist")
-    } else if (type == "Chain") {
-      valid <- (class(input) == "Chain")
-    } else if (type == "Soft") {
-      valid <- (class(input) == "GSE")
-    } else {
-      stop("Invalid type with '",type,"'. This type is not supported for validation.", call. = FALSE)
-    }
-    
-    if (valid) {
-      break
-    } else if (type == types[length(types)]) {
-      if (throws) {
-        stop("Invalid type input for '",substitute(input),"'. Must be of type: '",
-             paste0(types, collapse="', '"),"'", call. = FALSE)
-      } else {
-        return(invisible(FALSE)) 
+
+  # Check for list structures
+  if (length(input) > 1) {
+    for (type in types) {
+      if(type == "List"){
+        valid <- is.list(input)
+      } else if(type == "GRanges" | type == "GenomicRanges"){
+        valid <- is(input, "GRanges")
+      } else if (type == "Dataframe" | type == "DF") {
+        valid <- is.data.frame(input)
+      } else if (type == "Distance") {
+        valid <- is(input,"dist")
+      } else if (type == "Chain") {
+        valid <- (class(input) == "Chain")
       }
     }
+    if (valid) return(invisible(TRUE))
   }
   
-  return(invisible(TRUE))
+  if (length(input) <= 1) {
+    for (type in types) {
+      if (type == "Null") {
+        valid <- is.null(input)
+      }  else if (type == "NA") {
+        valid <- is.na(input)
+      } else if (type == "Integer") {
+        if(is.numeric(input)) valid <- (input == round(input))
+      } else if (type == "Numeric") {
+        valid = is.numeric(input)
+      } else if (type == "Character") {
+        valid = is.character(input) && nchar(input)==1
+      } else if (type == "String") {
+        valid = is.character(input)
+      } else if(type == "Boolean" | type == "Logical"){
+        valid <- is.logical(input)
+      } else if(type == "List"){
+        valid <- is.list(input)
+      } else if (type == "File") {
+        valid <- file_test("-f", input)
+      } else if (type == "Directory") {
+        valid <- file_test("-d", input)
+      } else if(type == "GRanges" | type == "GenomicRanges"){
+        valid <- is(input, "GRanges")
+      } else if (type == "Function") {
+        valid <- is.function(input)
+      } else if (type == "Dataframe" | type == "DF") {
+        valid <- is.data.frame(input)
+      } else if (type == "S4") {
+        valid <- isS4(input)
+      } else if (type == "Distance") {
+        valid <- is(input,"dist")
+      } else if (type == "Soft") {
+        valid <- (class(input) == "GSE")
+      } else {
+        stop("Invalid type with '",type,"'. This type is not supported for validation.", call. = FALSE)
+      }
+      
+      if (valid) {
+        break
+      } else if (type == types[length(types)]) {
+        if (throws) {
+          stop("Invalid type input for '",recursive_sub,"'. Must be of type: '",
+               paste0(types, collapse="', '"),"'", call. = FALSE)
+        } else {
+          return(invisible(FALSE)) 
+        }
+      }
+    } 
+  } else {valid = any(sapply(input, .validateType, type = types, throws = throws, recursive_sub = recursive_sub))}
+  
+  return(invisible(valid))
 }
 
 #--- .validateExp -------------------------------------------------------------------------------------------
@@ -310,3 +327,30 @@
   
   return(max(min(parallel::detectCores(),n_threads),1))
 }
+
+#--- is.empty ---------------------------------------------------------------------------------------
+#' Checks to see if an object is NULL, NA, zero length, whitespace
+#' @param obj object; the object to check for emptiness
+#' @return integer; 1 if windows, or some number of threads between 1 and parallel::detectCores
+is.empty <- function(x, trim = TRUE, ...) {
+  if (length(x) <= 1) {
+    if (is.null(x))
+      return (TRUE)
+    if (length(x) == 0)
+      return (TRUE)
+    if (is.na(x) || is.nan(x))
+      return (TRUE)
+    if (is.character(x) && nchar(ifelse(trim, trim.space(x), x)) == 0)
+      return (TRUE)
+    if (is.logical(x) && !isTRUE(x))
+      return (TRUE)
+    if (is.numeric(x) && x == 0)
+      return (TRUE)
+    return (FALSE)
+  } else
+    sapply(x, is.empty, trim = trim, ...)
+}
+
+
+
+

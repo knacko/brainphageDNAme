@@ -241,131 +241,6 @@ reduceWithMcols <- function(gr, keep_col = "ID") {
   return(keepMcols(gr,GenomicRanges::reduce,col=keep_col))
 }  
 
-
-# raw.idat.to.scMethrix -------------------------------------------------------------------------------------------
-raw.idat.to.scMethrix <- function(GEO, raw_dir, colData, regex, array = c("IlluminaHumanMethylation450k",
-                                                                   "IlluminaHumanMethylationEPIC",
-                                                                   "IlluminaHumanMethylation27k"), verbose = TRUE) {
-  #- Input Validation --------------------------------------------------------------------------
-  .validateType(GEO,"string")
-  .validateType(raw_dir,"directory")
-  .validateType(colData,"dataframe")
-  .validateType(verbose,"boolean")
-  
-  array <- .validateArg(array,raw.idat.to.scMethrix)
-  annotation <- ifelse(array == "IlluminaHumanMethylationEPIC", "ilm10b4.hg19", "ilmn12.hg19")
-  
-  #- Function code -----------------------------------------------------------------------------
-  
-  if (verbose) message("Convert .idat to scMethrix  (",start_time(),")")
-  
-  files <- list.files (raw_dir,full.names = TRUE)
-  files <- files[grepl(".*idat.*$", files,ignore.case = TRUE)]
-
-  if (length(files) == 0) {
-  
-    supp_file = paste0(raw_dir,GEO,"_RAW.tar")
-    
-    if (!.validateType(supp_file,"file",throw=F)) {
-      supp_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, 
-                                             baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
-      supp_file <- rownames(supp_file)
-    }
-    
-    supp_files <- untar(tarfile = supp_file, list=TRUE)
-    supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
-    untar(tarfile = supp_file, exdir = raw_dir, files = supp_files)
-    supp_files <- paste0(raw_dir,supp_files)
-    #file.remove(supp_file)
-    sapply(supp_files, function(file) GEOquery::gunzip(file, remove=TRUE))
-    files <- list.files(raw_dir, full.names=TRUE, pattern = ".*idat$",ignore.case = T)
-    
-    row_idx <- rep(TRUE,length(files))
-    
-    for (gsm in row.names(colData)) {
-      row_idx[which(str_detect(files,gsm))] <- FALSE
-    }
-    
-    file.remove(files[row_idx])
-    files <- files[!row_idx]
-    renamer <- str_match(files,"(.*?GSM.*?)_.*?(_(Red|Grn)\\.idat)")[,2:3]
-    renamer <- paste0(renamer[,1],renamer[,2])
-    file.rename(files, renamer)
-  }
-  
-  
-  browser()
-    
-  RGset <- minfi::read.metharray.exp(raw_dir, force=TRUE)
-  stopifnot(length(setdiff(colnames(RGset),row.names(colData)))==0)
-  
-  Mset <- preprocessNoob(RGset)
-  Rset <- minfi::ratioConvert(Mset)
-  minfi::annotation(Rset) = c(array = array, annotation = annotation)
-  GRset <-  minfi::mapToGenome(Rset)
-  
-  #GRset <-  preprocessFunnorm(RGset)
-  
-  if (verbose) message("Data extracted  (",stop_time(),")")
-  
-  return(scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData, verbose = verbose))
-}
-
-
-
-
-# var.proc.to.scMethrix -------------------------------------------------------------------------------------------
-var.proc.to.scMethrix <- function(GEO, raw_dir, colData, proc_file, array = c("IlluminaHumanMethylation450k",
-                                                        "IlluminaHumanMethylationEPIC",
-                                                        "IlluminaHumanMethylation27k"), verbose = TRUE) {
-  #- Input Validation --------------------------------------------------------------------------
-  .validateType(GEO,"string")
-  .validateType(raw_dir,"directory")
-  .validateType(colData,"dataframe")
-  .validateType(verbose,"boolean")
-  
-  array <- .validateArg(array,raw.idat.to.scMethrix)
-  annotation <- ifelse(array == "IlluminaHumanMethylationEPIC", "ilm10b4.hg19", "ilmn12.hg19")
-  
-  #- Function code -----------------------------------------------------------------------------
-  
-  if (verbose) message("Convert var.proc to scMethrix  (",start_time(),")")
-  
-  if (!.validateType(proc_file,"file",throw=F)) {
-    proc_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, 
-                                           baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = "proc_file")
-    proc_file <- rownames(proc_file)
-  }
-  
-  header <- fread(file=proc_file,nrows=1,header = F,sep=",")
-  cols <- which(!str_detect(header,"Pval"))
-  
-  meths <- as.data.frame(fread(file = proc_file,select=as.integer(cols)))
-  row.names(meths) <- meths[,1]
-  meths$V1 <- NULL
-  
-  colMatch <- match(colnames(meths),colData$ID)
-  keep_idx <- !is.na(colMatch)
-  
-  stopifnot(identical(colnames(meths)[1],colData$ID[colMatch[1]]))
-  
-  colnames(meths) <- row.names(colData)[colMatch]
-  meths = meths[!is.na(colMatch)]
-  
-  meths <- meths[order(colnames(meths))]
-  
-  colData$ID <- NULL
-  
-  Rset = RatioSet(Beta = meths)
-  minfi::annotation(Rset) = c(array = array, annotation = annotation)
-  GRset <-  minfi::mapToGenome(Rset)
-  GRset <- convertArray(GRset, outType = "IlluminaHumanMethylation450k", verbose = verbose)
-  
-  if (verbose) message("Data extracted  (",stop_time(),")")
-  
-  return(scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData, verbose = verbose))
-}
-
 standardize.scMethrix <- function(scm, chain = NULL, probe.set = NULL) {
   #- Input Validation --------------------------------------------------------------------------
   .validateExp(scm)
@@ -374,12 +249,47 @@ standardize.scMethrix <- function(scm, chain = NULL, probe.set = NULL) {
   .validateType(probe.set,"granges")
   
   #- Function code -----------------------------------------------------------------------------
+
   if (str_detect(metadata(scm)$genome,"hg19") && !is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
   scm <- bin_scMethrix(scm,regions = probe.set, fill=T)
+  
+  if (nrow(scm) != length(probe.set)) stop("After standardizing, probes are missing in the experiment")
+
   return (scm) 
 }
 
 
+# raw.idat.to.scMethrix -------------------------------------------------------------------------------------------
+getCellCount <- function(GEO, raw_dir, colData, cellTypes = c("CD8T","CD4T", "NK","Bcell","Mono","Gran"), array = c("IlluminaHumanMethylation450k",
+                                                                          "IlluminaHumanMethylationEPIC",
+                                                                          "IlluminaHumanMethylation27k"), verbose = TRUE,...) {
+  #- Input Validation --------------------------------------------------------------------------
+  .validateType(GEO,"string")
+  .validateType(raw_dir,"directory")
+  .validateType(colData,"dataframe")
+  .validateType(verbose,"boolean")
+ 
+  immune <- c("Bcell","CD4T","CD8T","Eos","Gran","Mono","Neu","NK")
+  cellTypes <- sapply(immune, like, vector = cellTypes)
+  cellTypes <- immune[colSums(cellTypes) > 0]
+  
+  if (length(cellTypes == 0)) return(invisible(TRUE))
+  
+  #- Function code -----------------------------------------------------------------------------
+  
+  if (verbose) message("Convert .idat to scMethrix  (",start_time(),")")
+  
+  files <- list.files (raw_dir,full.names = TRUE)
+  files <- files[grepl(".*idat.*$", files,ignore.case = TRUE)]
+  
+  RGset <- minfi::read.metharray.exp(raw_dir, force=TRUE)
+  
+  est <- estimateCellCounts(RGset, cellTypes = cellTypes,
+                     referencePlatform = array,
+                     returnAll = FALSE, meanPlot = FALSE, verbose = verbose, ...)
+  return(est)
+}
+  
 #' 
 #' #------------------------------------------------------------------------------------------------------------
 #' #' Converts green and red idat files into bedgraph files via minfi
@@ -431,53 +341,6 @@ standardize.scMethrix <- function(scm, chain = NULL, probe.set = NULL) {
 
 
 
-#------------------------------------------------------------------------------------------------------------
-#' If data is already normalized and stored within dataTables for each respective sample, this function will parse the downloaded soft file from the GEO and generate bedgraphs from it.
-#' 
-#' For example, in this repo (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE35069), only the ratio values are desired for each respective sample. If you look at a particular sample (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM861635), the data table lists these values. 
-#' @param soft string; the soft file
-#' @param colData string; the \code{\link{file.path}} for the bedgraphs to be output into
-#' @param exclude_id string; which IDs to exclude
-#' @param array string; the illumina array
-#' @param annotation string; the genome build
-#' @param verbose boolean; whether to be chatty
-#' @return data.table; the reference CpGs in bedgraph format
-#' @export
-soft.to.scMethrix <- function(soft, colData = NULL,  array = c("IlluminaHumanMethylation450k",
-                                                               "IlluminaHumanMethylationEPIC",
-                                                               "IlluminaHumanMethylation27k"), verbose = TRUE) {
-  
-  #- Input Validation --------------------------------------------------------------------------
-  .validateType(soft,"soft")
-  .validateType(colData,"dataframe")
-  .validateType(verbose,"boolean")
-  
-  array <- .validateArg(array,raw.idat.to.scMethrix)
-  annotation <- ifelse(array == "IlluminaHumanMethylationEPIC", "ilm10b4.hg19", "ilmn12.hg19")
-  
-  #- Function code -----------------------------------------------------------------------------
-  if (verbose) message("Converting soft to bed...",start_time())
-  
-  gsmids <- sort(intersect(row.names(colData),names(soft@gsms)))
-  meths = NULL
-  
-  for(gsmid in gsmids) {
-    meth <- soft@gsms[[gsmid]]@dataTable@table
-    meth <- subset(meth, select = c("ID_REF","VALUE"))
-    colnames(meth) <- c("ID_REF",gsmid)
-    if (is.null(meths)) meths <- meth else meths <- merge(meths,meth,by="ID_REF")
-  }
-  
-  ids <- meths$ID_REF
-  meths$ID_REF <- NULL
-  
-  GRset <- makeGenomicRatioSetFromMatrix(as.matrix(meths),rownames = ids, pData = colData, array = array, 
-                                         annotation = annotation,what="Beta")
-  
-  if (verbose) message("Data extracted  (",stop_time(),")")
-  
-  return(scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData, verbose = verbose))
-}
 
 #------------------------------------------------------------------------------------------------------------
 #' If data is stored within dataTables for each respective sample, this function will parse the downloaded soft file from the GEO and generate bedgraphs from it.

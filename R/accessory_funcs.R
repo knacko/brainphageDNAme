@@ -1,5 +1,5 @@
 mkdirs <- function (...) {
-
+  
   dirs <- list(...)
   for (i in 1:length(dirs)) {dir.create(dirs[[i]], showWarnings = FALSE)}
 }
@@ -20,8 +20,41 @@ colbind = function(...) {
   )[]
 }
 
+generate_heatmap <- function(scm,assay = "score",...) {
+  
+  mat <- as.matrix(get_matrix(scm,assay))
+  type <- colData(scm)$Cell
+  ha = HeatmapAnnotation(
+    df = data.frame(type = type),
+    annotation_height = unit(4, "mm")
+  )
+  
+  Heatmap(mat, name = "expression", km = 5, top_annotation = ha,
+          show_row_names = FALSE, show_column_names = FALSE,...) 
+  
+}
 
 
+do_methylcibersort <- function(scm, assay= "score", cell_types = NULL,...) {
+
+  if (is.null(cell_types)) {
+    beta <- get_matrix(scm,assay)
+    cell_types = colData(scm)$Cell
+    col_idx <- 1:ncol(scm)
+  } else {
+    col_idx <- which(!is.na(match(colData(scm)$Cell,cell_types)))
+    cell_types <- colData(scm)$Cell[col_idx]
+    beta <- get_matrix(scm,assay)[,col_idx]
+  }
+  
+  rownames(beta) <- 1:nrow(scm)
+  
+  fet <- feature.select.new(Stroma.matrix = beta, 
+                            Phenotype.stroma = as.factor(cell_types),
+                            export = TRUE, silent = FALSE,...)
+  
+  return(scm[as.integer(row.names(fet$SignatureMatrix)),col_idx])
+}
 
 corner <- function(mtx, n=30) {
   mtx <- mtx[1:n,1:n]
