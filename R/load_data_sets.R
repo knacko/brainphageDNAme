@@ -1,8 +1,9 @@
 home_dir <- "D:/Git/thesis_data/"
 cpg_dir <- "D:/Git/sampleData/ref_cpgs/"
 chain_dir <- "D:/Git/thesis_data/chains/"
-probe.set <- probes.ill[["i450k.hg38.win.red"]]
+probe.set <- probes.ill#probes.ill[["i450k.hg38.win.red"]]
 chain <- chains[["hg19ToHg38"]]
+cell.list <- cell_types[["all"]]
 
 delete_data_set <- function(...) {
   Exps <- unlist(...)
@@ -11,7 +12,7 @@ delete_data_set <- function(...) {
   })
 }
 
-get_data_set <- function(..., standardize = T) {
+get_data_set <- function(..., region = "all") {
   
   GEOs <- unlist(...)
 
@@ -85,7 +86,6 @@ get_data_set <- function(..., standardize = T) {
       colData <- data.frame(row.names = "Singh", Cell = "Microglia")
       stopifnot(length(setdiff(colData$Cell, cell_types[["all"]])) == 0)
       
-
       files <- list.files(raw_dir, full.names = TRUE, pattern = ".*idat$", ignore.case = T)
       RGset <- minfi::read.metharray.exp(raw_dir, force = TRUE)
       Mset <- preprocessNoob(RGset)
@@ -119,37 +119,51 @@ get_data_set <- function(..., standardize = T) {
     
     base_dir <- paste0(home_dir, GEO, "/")
     exp_dir <- paste0(base_dir, "exp/")
-    exp_name <- paste0("scm.", GEO)
-    exp_path <- paste0(exp_dir, exp_name, ".rds")
-
+    exp_name <- paste0(c("scm",GEO,region), collapse=".")
+    exp_all <- paste0(exp_dir,"scm.",GEO,".all.rds")
+    exp_path <- paste0(exp_dir,exp_name,".rds")
+    
     if (!.validateType(exp_path, "file", throws = F)) {
-      raw_dir <- paste0(base_dir, "raw/")
-      mkdirs(base_dir, raw_dir, exp_dir)
-
-      soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
-      soft <- GEOquery::getGEO(filename = soft)
-
-      # Get colData
-      cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
-      cell[str_detect(cell, "blood")] <- "WholeBlood"
-      cell[str_detect(cell, "Gran")] <- "Granulocyte"
-      cell[str_detect(cell, "CD4")] <- "CD4Tcell"
-      cell[str_detect(cell, "CD8")] <- "CD8Tcell"
-      cell[str_detect(cell, "CD14")] <- "Monocyte"
-      cell[str_detect(cell, "CD19")] <- "Bcell"
-      cell[str_detect(cell, "CD56")] <- "NKcell"
-      cell[str_detect(cell, "Neu")] <- "Granulocyte"
-      cell[str_detect(cell, "Eos")] <- "Granulocyte"
-      remove_idx <- which(str_detect(cell, "PBMC"))
-      colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
-      colData <- colData[-remove_idx, , drop = FALSE]
-      stopifnot(length(setdiff(colData$Cell, cell_types[["all"]])) == 0)
       
-
-      # Get data
-      scm <- soft.to.scMethrix(soft = soft, colData = colData, array = array)
-      scm <- standardize.scMethrix(scm, GEO, chain, probe.set)
-      assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      if (!.validateType(exp_all, "file", throws = F)) {
+        raw_dir <- paste0(base_dir, "raw/")
+        mkdirs(base_dir, raw_dir, exp_dir)
+        
+        if (exists("soft") && !identical(soft@header$geo_accession, GEO)) {
+          soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
+          soft <- GEOquery::getGEO(filename = soft)
+        }
+        
+        # Get colData
+        cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+        cell[str_detect(cell, "blood")] <- "WholeBlood"
+        cell[str_detect(cell, "Gran")] <- "Granulocyte"
+        cell[str_detect(cell, "CD4")] <- "CD4Tcell"
+        cell[str_detect(cell, "CD8")] <- "CD8Tcell"
+        cell[str_detect(cell, "CD14")] <- "Monocyte"
+        cell[str_detect(cell, "CD19")] <- "Bcell"
+        cell[str_detect(cell, "CD56")] <- "NKcell"
+        cell[str_detect(cell, "Neu")] <- "Granulocyte"
+        cell[str_detect(cell, "Eos")] <- "Granulocyte"
+        remove_idx <- which(str_detect(cell, "PBMC"))
+        colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+        colData <- colData[-remove_idx, , drop = FALSE]
+        stopifnot(colData$Cell %allin% cell.list)
+        
+        # Get data
+        scm <- raw.idat.to.scMethrix(GEO = GEO, raw_dir = raw_dir, colData = colData, array = array)
+        scm <- standardize.scMethrix(scm, GEO, chain, region = NULL)
+        scm <- scMethrix::save_scMethrix(scm, dest = exp_all)
+      } else {
+        scm <- scMethrix::load_scMethrix(dest = exp_all)
+      }
+      
+      if (region == "all") {
+        assign(exp_name, scm, envir = .GlobalEnv)
+      } else { 
+        scm <- standardize.scMethrix(scm, GEO = GEO, chain = chain, bin_region = probe.set[[region]])
+        assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      }
     } else {
       assign(exp_name, scMethrix::load_scMethrix(exp_path), envir = .GlobalEnv)
     }
@@ -167,37 +181,51 @@ get_data_set <- function(..., standardize = T) {
     GEO <- "GSE41826"
     array <- "IlluminaHumanMethylation450k"
     message("Getting ",GEO)
-
+    
     base_dir <- paste0(home_dir, GEO, "/")
     exp_dir <- paste0(base_dir, "exp/")
-    exp_name <- paste0("scm.", GEO)
-    exp_path <- paste0(exp_dir, exp_name, ".rds")
-
+    exp_name <- paste0(c("scm",GEO,region), collapse=".")
+    exp_all <- paste0(exp_dir,"scm.",GEO,".all.rds")
+    exp_path <- paste0(exp_dir,exp_name,".rds")
+    
     if (!.validateType(exp_path, "file", throws = F)) {
-      raw_dir <- paste0(base_dir, "raw/")
-      mkdirs(base_dir, raw_dir, exp_dir)
-
-      soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
-      soft <- GEOquery::getGEO(filename = soft)
-
-      # Get colData
-      cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
-      cell <- paste0("###-", cell)
-      cell[str_detect(cell, "G")] <- "Glia"
-      cell[str_detect(cell, "N")] <- "Neuron"
-      status <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$characteristics_ch1[[2]])
-      cell[!str_detect(status, "Control")] <- "###-"
-      remove_idx <- which(str_detect(cell, "###-"))
-      exclude_id <- names(cell[remove_idx])
-      colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
-      colData <- colData[-remove_idx, , drop = FALSE]
-      stopifnot(length(setdiff(colData$Cell, cell_types[["all"]])) == 0)
       
-
-      # Get data
-      scm <- soft.to.scMethrix(soft = soft, colData = colData, array = array)
-      scm <- standardize.scMethrix(scm, GEO, chain, probe.set)
-      assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      if (!.validateType(exp_all, "file", throws = F)) {
+        raw_dir <- paste0(base_dir, "raw/")
+        mkdirs(base_dir, raw_dir, exp_dir)
+        
+        if (exists("soft") && !identical(soft@header$geo_accession, GEO)) {
+          soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
+          soft <- GEOquery::getGEO(filename = soft)
+        }
+        
+        # Get colData
+        cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+        cell <- paste0("###-", cell)
+        cell[str_detect(cell, "G")] <- "Glia"
+        cell[str_detect(cell, "N")] <- "Neuron"
+        status <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$characteristics_ch1[[2]])
+        cell[!str_detect(status, "Control")] <- "###-"
+        remove_idx <- which(str_detect(cell, "###-"))
+        exclude_id <- names(cell[remove_idx])
+        colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+        colData <- colData[-remove_idx, , drop = FALSE]
+        stopifnot(length(setdiff(colData$Cell, cell_types[["all"]])) == 0)
+        
+        # Get data
+        scm <- soft.to.scMethrix(soft = soft, colData = colData, array = array)
+        scm <- standardize.scMethrix(scm, GEO, chain, region = NULL)
+        scm <- scMethrix::save_scMethrix(scm, dest = exp_all)
+      } else {
+        scm <- scMethrix::load_scMethrix(dest = exp_all)
+      }
+      
+      if (region == "all") {
+        assign(exp_name, scm, envir = .GlobalEnv)
+      } else { 
+        scm <- standardize.scMethrix(scm, GEO = GEO, chain = chain, bin_region = probe.set[[region]])
+        assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      }
     } else {
       assign(exp_name, scMethrix::load_scMethrix(exp_path), envir = .GlobalEnv)
     }
@@ -215,38 +243,53 @@ get_data_set <- function(..., standardize = T) {
     GEO <- "GSE49618"
     array <- "IlluminaHumanMethylation450k"
     message("Getting ",GEO)
-
+    
     base_dir <- paste0(home_dir, GEO, "/")
     exp_dir <- paste0(base_dir, "exp/")
-    exp_name <- paste0("scm.", GEO)
-    exp_path <- paste0(exp_dir, exp_name, ".rds")
-
+    exp_name <- paste0(c("scm",GEO,region), collapse=".")
+    exp_all <- paste0(exp_dir,"scm.",GEO,".all.rds")
+    exp_path <- paste0(exp_dir,exp_name,".rds")
+    
     if (!.validateType(exp_path, "file", throws = F)) {
-      raw_dir <- paste0(base_dir, "raw/")
-      mkdirs(base_dir, raw_dir, exp_dir)
-
-      soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
-      soft <- GEOquery::getGEO(filename = soft)
-
-      # Get colData
-      cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
-      cell <- paste0("###-", cell)
-      cell[str_detect(cell, "CD34")] <- "HSCm"
-      cell[str_detect(cell, "PMN")] <- "Granulocyte"
-      cell[str_detect(cell, "MONO")] <- "Monocyte"
-      cell[str_detect(cell, "CD19")] <- "Bcell"
-      cell[str_detect(cell, "PROS")] <- "GMP"
-      remove_idx <- which(str_detect(cell, "###-"))
-      exclude_id <- names(cell[remove_idx])
-      colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
-      colData <- colData[-remove_idx, , drop = FALSE]
-      stopifnot(length(setdiff(colData$Cell, cell_types[["all"]])) == 0)
       
-
-      # Get data
-      scm <- raw.idat.to.scMethrix(GEO = GEO, raw_dir = raw_dir, colData = colData, array = array)
-      scm <- standardize.scMethrix(scm, GEO, chain, probe.set)
-      assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      if (!.validateType(exp_all, "file", throws = F)) {
+        raw_dir <- paste0(base_dir, "raw/")
+        mkdirs(base_dir, raw_dir, exp_dir)
+        
+        if (exists("soft") && !identical(soft@header$geo_accession, GEO)) {
+          soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
+          soft <- GEOquery::getGEO(filename = soft)
+        }
+        
+        # Get colData
+        cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$title)
+        cell <- paste0("###-", cell)
+        cell[str_detect(cell, "CD34")] <- "HSCm"
+        cell[str_detect(cell, "PMN")] <- "Granulocyte"
+        cell[str_detect(cell, "MONO")] <- "Monocyte"
+        cell[str_detect(cell, "CD19")] <- "Bcell"
+        cell[str_detect(cell, "PROS")] <- "GMP"
+        remove_idx <- which(str_detect(cell, "###-"))
+        exclude_id <- names(cell[remove_idx])
+        colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
+        colData <- colData[-remove_idx, , drop = FALSE]
+        stopifnot(colData$Cell %allin% cell_types[["all"]])
+        
+        # Get data
+        scm <- raw.idat.to.scMethrix(GEO = GEO, raw_dir = raw_dir, colData = colData, array = array)
+        scm <- standardize.scMethrix(scm, GEO, chain, region = NULL)
+        scm <- scMethrix::save_scMethrix(scm, dest = exp_all)
+      } else {
+        scm <- scMethrix::load_scMethrix(dest = exp_all)
+      }
+      
+      if (region == "all") {
+        assign(exp_name, scm, envir = .GlobalEnv)
+      } else { 
+        scm <- standardize.scMethrix(scm, GEO = GEO, chain = chain, bin_region = probe.set[[region]])
+        assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      }
+      
     } else {
       assign(exp_name, scMethrix::load_scMethrix(exp_path), envir = .GlobalEnv)
     }
@@ -892,34 +935,48 @@ get_data_set <- function(..., standardize = T) {
     GEO <- "GSE104293"
     array <- "IlluminaHumanMethylation450k"
     message("Getting ",GEO)
-
+    
     base_dir <- paste0(home_dir, GEO, "/")
     exp_dir <- paste0(base_dir, "exp/")
-    exp_name <- paste0("scm.", GEO)
-    exp_path <- paste0(exp_dir, exp_name, ".rds")
-
+    exp_name <- paste0(c("scm",GEO,region), collapse=".")
+    exp_all <- paste0(exp_dir,"scm.",GEO,".all.rds")
+    exp_path <- paste0(exp_dir,exp_name,".rds")
+    
     if (!.validateType(exp_path, "file", throws = F)) {
-      raw_dir <- paste0(base_dir, "raw/")
-      mkdirs(base_dir, raw_dir, exp_dir)
-
-      soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
-      soft <- GEOquery::getGEO(filename = soft)
-
-      # Get colData
-      colData <- data.frame(row.names = names(soft@gsms), Cell = rep("Glioma", length(names(soft@gsms))))
-      stopifnot(all(cell %in% cell_types[["all"]]))
       
-
-      # Get data
-      scm <- raw.idat.to.scMethrix(GEO = GEO, raw_dir = raw_dir, colData = colData, array = array)
-      assign(paste0(exp_name,".std"), scMethrix::save_scMethrix(scm, dest = paste0(exp_dir,exp_name,".std.rds")), envir = .GlobalEnv)
-      scm <- standardize.scMethrix(scm, GEO, chain, probe.set)
-      assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      if (!.validateType(exp_all, "file", throws = F)) {
+        raw_dir <- paste0(base_dir, "raw/")
+        mkdirs(base_dir, raw_dir, exp_dir)
+        
+        if (exists("soft") && !identical(soft@header$geo_accession, GEO)) {
+          soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
+          soft <- GEOquery::getGEO(filename = soft)
+        }
+        
+        # Get colData
+        colData <- data.frame(row.names = names(soft@gsms), Cell = rep("Glioma", length(names(soft@gsms))))
+        stopifnot(left_match(colData$Cell, cell_types[["all"]]))
+        
+        # Get data
+        scm <- raw.idat.to.scMethrix(GEO = GEO, raw_dir = raw_dir, colData = colData, array = array)
+        scm <- standardize.scMethrix(scm, GEO, chain, region = NULL)
+        scMethrix::save_scMethrix(scm, dest = exp_all)
+      } else {
+        scm <- scMethrix::load_scMethrix(dest = exp_all)
+      }
+      
+      if (region == "all") {
+        assign(exp_name, scm, envir = .GlobalEnv)
+      } else { 
+        scm <- standardize.scMethrix(scm, GEO = GEO, chain = chain, bin_region = probe.set[[region]])
+        assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+      }
+    
     } else {
       assign(exp_name, scMethrix::load_scMethrix(exp_path), envir = .GlobalEnv)
     }
   }
-
+  
   #--- GSE110554 ----------------------------------------------------------------------------------------------
   # GEO: GSE110554
   # Types: Granulocyte, monocytes, B-lymphocytes, natural killer (NK) cells, CD4+ T-cells, and CD8+ T-cells
@@ -1389,5 +1446,65 @@ get_data_set <- function(..., standardize = T) {
     } else {
       assign(exp_name, scMethrix::load_scMethrix(exp_path), envir = .GlobalEnv)
     }
+  }
+  
+  
+  
+  
+  array <- "IlluminaHumanMethylation450k"
+  message("Getting ",GEO)
+  
+  base_dir <- paste0(home_dir, GEO, "/")
+  exp_dir <- paste0(base_dir, "exp/")
+  exp_name <- paste0(c("scm",GEO,region), collapse=".")
+  exp_all <- paste0(exp_dir,"scm.",GEO,".all.rds")
+  exp_path <- paste0(exp_dir,exp_name,".rds")
+  
+  if (!.validateType(exp_path, "file", throws = F)) {
+    
+    if (!.validateType(exp_all, "file", throws = F)) {
+      raw_dir <- paste0(base_dir, "raw/")
+      mkdirs(base_dir, raw_dir, exp_dir)
+      
+      if (exists("soft") && !identical(soft@header$geo_accession, GEO)) {
+        soft <- GEOquery::getGEOfile(GEO, destdir = raw_dir)
+        soft <- GEOquery::getGEO(filename = soft)
+      }
+      
+      # Get colData
+      ids <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$description)
+      cell <- sapply(names(soft@gsms), function(gsm) soft@gsms[[gsm]]@header$source_name_ch1)
+      cell[str_detect(cell, "Monocyte")] <- "Monocyte"
+      cell[str_detect(cell, "B-cells")] <- "Bcell"
+      cell[str_detect(cell, "CD4")] <- "CD4Tcell"
+      cell[str_detect(cell, "CD8")] <- "CD8Tcell"
+      cell[str_detect(cell, "blood")] <- "WholeBlood"
+      cell[str_detect(cell, "Granulocyte")] <- "Granulocyte"
+      cell[str_detect(cell, "CD8")] <- "CD8Tcell"
+      remove_idx <- which(str_detect(cell, "Nasal|Buccal"))
+      exclude_id <- names(cell[remove_idx])
+      colData <- data.frame(row.names = names(soft@gsms), Cell = cell, ID = ids)
+      colData <- colData[-remove_idx, , drop = FALSE]
+      stopifnot(all(colData$cell %in% cell_types))
+      
+      # Get data
+      scm <- var.proc.to.scMethrix(
+        GEO = GEO, raw_dir = raw_dir, colData = colData, array = array,
+        proc_file = "GSE166844_Variance_processed_signals.csv.gz"
+      )
+      scm <- standardize.scMethrix(scm, GEO, chain, region = NULL)
+      scm <- scMethrix::save_scMethrix(scm, dest = exp_all)
+    } else {
+      scm <- scMethrix::load_scMethrix(dest = exp_all)
+    }
+    
+    if (region == "all") {
+      assign(exp_name, scm, envir = .GlobalEnv)
+    } else { 
+      scm <- standardize.scMethrix(scm, GEO = GEO, chain = chain, bin_region = probe.set[[region]])
+      assign(exp_name, scMethrix::save_scMethrix(scm, dest = exp_path), envir = .GlobalEnv)
+    }
+  } else {
+    assign(exp_name, scMethrix::load_scMethrix(exp_path), envir = .GlobalEnv)
   }
 }
