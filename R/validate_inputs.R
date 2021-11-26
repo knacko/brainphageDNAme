@@ -18,7 +18,7 @@
 #' @param arg variable; the variable in which to check
 #' @param ignore.case boolean; ignores case of the choices
 #' @return arg, if the value is in the function definition.
-.validateArg <- function(arg, parent = NULL, ignore.case = T) {
+.validateArg <- function(arg, parent = NULL, ignore.case = T, partial.match = T) {
   
   #.validateType(ignore.case,"boolean")
   
@@ -30,17 +30,26 @@
   
   name = substitute(arg)
   choices <- eval(formals(parent)[[name]])
-
-  if (ignore.case) {
-    m = stringr::str_detect(tolower(choices),tolower(arg))
+  
+  arg <- head(arg,1)
+  
+  if (partial.match) {
+    if (ignore.case) {
+      m <- grepl(tolower(arg), tolower(choices), fixed = TRUE)
+    } else {
+      m <- grepl(arg, choices, fixed = TRUE)
+    }
   } else {
-    m = stringr::str_detect(choices,arg)
+    if (ignore.case) {
+      m <- choices %in% arg
+    } else {
+      m <- tolower(choices) %in% tolower(arg)
+    }
   }
   
   if (sum(m) != 1) stop(paste0("Invalid arg input for '",paste(name),"'. Found: '",arg,"'; Must match one of: '",
-                paste0(eval(formals(parent)[[name]]), collapse="', '"),"'"), call. = FALSE)
+                               paste0(eval(formals(parent)[[name]]), collapse="', '"),"'"), call. = FALSE)
   
-
   return(choices[which(m)])
 }
 

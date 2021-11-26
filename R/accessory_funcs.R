@@ -9,6 +9,13 @@ get_sample_name = function(s) {
   return(tools::file_path_sans_ext(basename(s)))
 }
 
+getcells <- function(scm) {
+  
+  
+  return(table(colData(scm)$Cell))
+  
+}
+
 #' A faster version of cbind when trying to combine lists of data.tables
 #' @param ... A list of data.tables with identical # of rows
 #' @return data.table; the cbinded output 
@@ -20,7 +27,7 @@ colbind = function(...) {
   )[]
 }
 
-generate_heatmap <- function(scm,assay = "score",...) {
+generate_heatmap <- function(scm,assay = "score",grouping = NULL, ...) {
   
   mat <- as.matrix(get_matrix(scm,assay))
   type <- colData(scm)$Cell
@@ -29,31 +36,35 @@ generate_heatmap <- function(scm,assay = "score",...) {
     annotation_height = unit(4, "mm")
   )
   
-  Heatmap(mat, name = "expression", km = 5, top_annotation = ha,
-          show_row_names = FALSE, show_column_names = FALSE,...) 
+  Heatmap(mat, name = "expression", km = 5, top_annotation = ha, cluster_columns = agnes(t(mat)), 
+          show_row_names = FALSE, column_dend_side = "bottom", column_names_side = "top", show_column_names = FALSE,...) 
   
 }
 
+outer_match <- function(x,y) {
+  !is.na(match(x,y))
+}
 
-do_methylcibersort <- function(scm, assay= "score", cell_types = NULL,...) {
+
+do_methylcibersort <- function(scm, assay= "score", cell_types = NULL, col = "Cell", ...) {
 
   if (is.null(cell_types)) {
     beta <- get_matrix(scm,assay)
-    cell_types = colData(scm)$Cell
+    cell_types = colData(scm)[[col]]
     col_idx <- 1:ncol(scm)
   } else {
-    col_idx <- which(!is.na(match(colData(scm)$Cell,cell_types)))
-    cell_types <- colData(scm)$Cell[col_idx]
+    col_idx <- which(!is.na(match(colData(scm)[[col]],cell_types)))
+    cell_types <- colData(scm)[[col]][col_idx]
     beta <- get_matrix(scm,assay)[,col_idx]
   }
-  
-  rownames(beta) <- 1:nrow(scm)
+
+  rownames(beta) <- names(rowRanges(scm))
   
   fet <- feature.select.new(Stroma.matrix = beta, 
                             Phenotype.stroma = as.factor(cell_types),
                             export = TRUE, silent = FALSE,...)
-  
-  return(scm[as.integer(row.names(fet$SignatureMatrix)),col_idx])
+
+  return(scm[row.names(fet$SignatureMatrix),col_idx])
 }
 
 corner <- function(mtx, n=30) {

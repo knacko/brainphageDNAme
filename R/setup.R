@@ -1,4 +1,4 @@
-list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery","testthat","stringr","IlluminaHumanMethylation450kanno.ilmn12.hg19","IlluminaHumanMethylation27kanno.ilmn12.hg19", "IlluminaHumanMethylationEPICanno.ilm10b4.hg19","openxlsx","AnnotationHub","future","ComplexHeatmap")
+list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery","testthat","stringr","IlluminaHumanMethylation450kanno.ilmn12.hg19","IlluminaHumanMethylation27kanno.ilmn12.hg19", "IlluminaHumanMethylationEPICanno.ilm10b4.hg19","openxlsx","AnnotationHub","future","ComplexHeatmap","ggplot2","ggforce","filesstrings","tibble","e1071","parallel","preprocessCore","ggpubr","cluster")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) {
   install.packages(new.packages)
@@ -17,6 +17,9 @@ source("D:/Git/monobrainDNAme/R/validate_inputs.R")
 source("D:/Git/monobrainDNAme/R/convert_to_bed.R")
 source("D:/Git/monobrainDNAme/R/feature.select.new.R")
 source("D:/Git/monobrainDNAme/R/file_input.R")
+source("D:/Git/monobrainDNAme/R/CIBERSORT.R")
+#source("D:/Git/monobrainDNAme/R/load_data_sets.R")
+
 
 # Get liftover chains ---------------------------------------------------------------------------------------------
 if (!exists("ah")) ah <- AnnotationHub()
@@ -87,12 +90,16 @@ if (file.exists(file.450k)) {
 
 rm(file.450k, file.27k, file.EPIC)
 
+# Load files that need signatures ---------------------------------------------------------------------------------
+
+source("D:/Git/monobrainDNAme/R/load_data_sets.R")
+
 # Setup the cell type lists ---------------------------------------------------------------------------------------
-cell_types <- list(all = c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Eosinophil","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
-                   immune = c("Neutrophil","NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","Granulocyte","Eosinophil","Treg","Dendritic"),
+cell_types <- list(all = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
+                   immune = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","Granulocyte","Treg","Dendritic"),
                    brain = c("Microglia","Inf.microglia","Inf.macrophage","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm"),
                    progenitor = c("CMP","GMP","cMOP","HSCb","HSCm","MPPb","MPPm"),
                    basic = c("CD4Tcell","CD8Tcell","Treg","NKcell","Bcell","Monocyte","Granulocyte","Neutrophil","Eosinophils","Neuron","Glia","Endothelial","Glioma","WholeBlood"))
 
 # Load up various data --------------------------------------------------------------------------------------------
-scm.big <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
+#scm.big <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/exp/")

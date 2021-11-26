@@ -241,20 +241,21 @@ reduceWithMcols <- function(gr, keep_col = "ID") {
   return(keepMcols(gr,GenomicRanges::reduce,col=keep_col))
 }  
 
-standardize.scMethrix <- function(scm, chain = NULL, probe.set = NULL) {
+standardize.scMethrix <- function(scm, GEO, chain = NULL, probe.set = NULL) {
   #- Input Validation --------------------------------------------------------------------------
   .validateExp(scm)
-  .validateType(raw_dir,"directory")
   .validateType(chain,"chain")
   .validateType(probe.set,"granges")
   
   #- Function code -----------------------------------------------------------------------------
 
+  colData(scm)$Experiment <- GEO
+  metadata(scm)["Experiment"] <- GEO
   if (str_detect(metadata(scm)$genome,"hg19") && !is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
   scm <- bin_scMethrix(scm,regions = probe.set, fill=T)
-  
-  if (nrow(scm) != length(probe.set)) stop("After standardizing, probes are missing in the experiment")
-
+  names(rowRanges(scm)) <- paste0("rid_",1:nrow(scm))
+  if (is_h5(scm)) scm <- convert_HDF5_scMethrix(scm)
+  if (nrow(scm) != length(probe.set)) {message("Wrong rows");browser()}
   return (scm) 
 }
 

@@ -65,7 +65,7 @@ raw.idat.to.scMethrix <- function(GEO, raw_dir, colData, regex, array = c("Illum
   return(scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData, verbose = verbose))
 }
 
-tar.bed.to.scMethrix <- function(GEO, raw_dir, colData, array = c("IlluminaHumanMethylation450k",
+tar.bed.to.scMethrix <- function(GEO, raw_dir, exp_dir, colData, array = c("IlluminaHumanMethylation450k",
                                                                           "IlluminaHumanMethylationEPIC",
                                                                           "IlluminaHumanMethylation27k"), 
                                   target_array = "IlluminaHumanMethylation450k", verbose = TRUE) {
@@ -82,36 +82,52 @@ tar.bed.to.scMethrix <- function(GEO, raw_dir, colData, array = c("IlluminaHuman
   
   if (verbose) message("Convert .bed to scMethrix  (",start_time(),")")
   
-  supp_file = paste0(raw_dir,GEO,"_RAW.tar")
+  files <- list.files (raw_dir,full.names = TRUE)
+  files <- files[grepl(".*bedgraph$", files,ignore.case = TRUE)]
   
-  if (!.validateType(supp_file,"file",throw=F)) {
-    supp_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, 
-                                             baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
-    supp_file <- rownames(supp_file)
-  }
+  if (length(files) == 0) {
     
-  files <- untar(tarfile = supp_file, list=TRUE)
-  #supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
-  untar(tarfile = supp_file, exdir = raw_dir, files = files)
-  files <- paste0(raw_dir,files)
-  #file.remove(supp_file)
-  #sapply(supp_files, GEOquery::gunzip, overwrite=TRUE)
+    if (verbose) message("Cannot find bedgraphs. Searching for RAW...")
+    
+    supp_file = paste0(raw_dir,GEO,"_RAW.tar")
+    
+    if (!.validateType(supp_file,"file",throw=F)) {
+      
+      if (verbose) message("Cannot find RAW. Downloading from GEO...")
+      
+      supp_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, 
+                                               baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
+      supp_file <- rownames(supp_file)
+      
+      if (verbose) message("RAW downloaded in ",split_time())
+    }
+    
+    if (verbose) message("Extracting from RAW...")
+
+    files <- untar(tarfile = supp_file, list=TRUE)
+    #supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
+    untar(tarfile = supp_file, exdir = raw_dir, files = files)
+    files <- paste0(raw_dir,files)
+    #file.remove(supp_file)
+    #sapply(supp_files, GEOquery::gunzip, overwrite=TRUE)
+    
+    row_idx <- !apply(outer(files, row.names(colData), str_detect),1,any)
+    
+    file.remove(files[row_idx])
+    files <- files[!row_idx]
+    renamer <- str_replace(files,"(.*?GSM.*?)_.*","\\1\\.bedgraph\\.gz")
+    file.rename(files, renamer)
+    files <- renamer
   
-  row_idx <- !apply(outer(files, row.names(colData), str_detect),1,any)
+    sapply(files, GEOquery::gunzip, overwrite=TRUE)
   
-  file.remove(files[row_idx])
-  files <- files[!row_idx]
-  renamer <- paste0(raw_dir,str_replace(files,".*?(GSM.*?)_.*(\\.gz$)","\\1\\.bed\\.\\2"))
-  file.rename(files, renamer)
-  files <- renamer
-
-  sapply(files, function(file) {
-    GEOquery::gunzip(files,destname = tools::file_path_sans_ext(file), overwrite=TRUE)
-  })
-
-  files <- tools::file_path_sans_ext(files)
-
-  scm <- read_beds(files, ref_cpgs = ref.gen.hg38, colData = colData, chr_idx = 1, start_idx = 2, M_idx = 3, cov_idx=4, h5 = T, h5_dir = exp_dir)
+    #files <- tools::file_path_sans_ext(files)
+    
+    if (verbose) message("Files extracted in ",split_time())
+  }
+  
+  scm <- read_beds(files, ref_cpgs = ref.gen.hg38, colData = colData, chr_idx = 1, start_idx = 2, M_idx = 3, 
+                   cov_idx=4, h5 = T, h5_dir = exp_dir, replace = TRUE)
   
   if (verbose) message("Data extracted  (",stop_time(),")")
   
@@ -219,7 +235,7 @@ soft.to.scMethrix <- function(soft, colData = NULL,  array = c("IlluminaHumanMet
   
   gsmids <- sort(intersect(row.names(colData),names(soft@gsms)))
   meths = NULL
-  
+
   for(gsmid in gsmids) {
     meth <- soft@gsms[[gsmid]]@dataTable@table
     meth <- subset(meth, select = c("ID_REF","VALUE"))
