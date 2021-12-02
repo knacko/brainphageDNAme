@@ -52,6 +52,7 @@ raw.idat.to.scMethrix <- function(GEO, raw_dir, colData, regex, array = c("Illum
   }
   
   RGset <- minfi::read.metharray.exp(raw_dir, force=TRUE)
+
   stopifnot(length(setdiff(colnames(RGset),row.names(colData)))==0)
   
   Mset <- preprocessNoob(RGset)
@@ -65,21 +66,18 @@ raw.idat.to.scMethrix <- function(GEO, raw_dir, colData, regex, array = c("Illum
   return(scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData, verbose = verbose))
 }
 
-tar.bed.to.scMethrix <- function(GEO, raw_dir, exp_dir, colData, array = c("IlluminaHumanMethylation450k",
-                                                                          "IlluminaHumanMethylationEPIC",
-                                                                          "IlluminaHumanMethylation27k"), 
-                                  target_array = "IlluminaHumanMethylation450k", verbose = TRUE) {
+
+# Bed -------------------------------------------------------------------------------------------------------------
+tar.bed.to.scMethrix <- function(GEO, raw_dir, exp_dir, colData, verbose = TRUE) {
   #- Input Validation --------------------------------------------------------------------------
+  
   .validateType(GEO,"string")
   .validateType(raw_dir,"directory")
   .validateType(colData,"dataframe")
   .validateType(verbose,"boolean")
   
-  array <- .validateArg(array,raw.idat.to.scMethrix)
-  annotation <- ifelse(array == "IlluminaHumanMethylationEPIC", "ilm10b4.hg19", "ilmn12.hg19")
-  
   #- Function code -----------------------------------------------------------------------------
-  
+
   if (verbose) message("Convert .bed to scMethrix  (",start_time(),")")
   
   files <- list.files (raw_dir,full.names = TRUE)
@@ -125,15 +123,14 @@ tar.bed.to.scMethrix <- function(GEO, raw_dir, exp_dir, colData, array = c("Illu
     
     if (verbose) message("Files extracted in ",split_time())
   }
-  
-  scm <- read_beds(files, ref_cpgs = ref.gen.hg38, colData = colData, chr_idx = 1, start_idx = 2, M_idx = 3, 
-                   cov_idx=4, h5 = T, h5_dir = exp_dir, replace = TRUE)
+
+  scm <- read_beds(files, ref_cpgs = cpgs.hg38, colData = colData, chr_idx = 1, start_idx = 2, M_idx = 3, 
+                   cov_idx=4, h5 = T, replace = TRUE, batch_size = 5, keep_cov = F)
   
   if (verbose) message("Data extracted  (",stop_time(),")")
   
   return(scm)
 }
-
 
 #------------------------------------------------------------------------------------------------------------
 #' If data is already normalized and stored within dataTables for each respective sample, this function will parse the downloaded soft file from the GEO and generate bedgraphs from it.
@@ -151,7 +148,7 @@ tar.bed.to.scMethrix <- function(GEO, raw_dir, exp_dir, colData, array = c("Illu
 #' @param verbose boolean; whether to be chatty
 #' @return data.table; the reference CpGs in bedgraph format
 #' @export
-var.proc.to.scMethrix <- function(GEO, raw_dir, colData, proc_file, array = c("IlluminaHumanMethylation450k",
+var.proc.to.scMethrix <- function(GEO, raw_dir, colData, proc_file, id_col, array = c("IlluminaHumanMethylation450k",
                                                                               "IlluminaHumanMethylationEPIC",
                                                                               "IlluminaHumanMethylation27k"), 
                                   target_array = "IlluminaHumanMethylation450k", verbose = TRUE) {
@@ -168,8 +165,6 @@ var.proc.to.scMethrix <- function(GEO, raw_dir, colData, proc_file, array = c("I
 
   if (verbose) message("Convert var.proc to scMethrix  (",start_time(),")")
 
-  proc_file <- paste0(raw_dir,proc_file)
-  
   if (!.validateType(proc_file,"file",throw=F)) {
     proc_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, 
                                            baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = basename(proc_file))
@@ -183,14 +178,9 @@ var.proc.to.scMethrix <- function(GEO, raw_dir, colData, proc_file, array = c("I
   row.names(meths) <- meths[,1]
   meths$V1 <- NULL
   
+  meths <- meths[,(colnames(meths) %in% colData[[id_col]])]
   colMatch <- match(colnames(meths),colData$ID)
-  keep_idx <- !is.na(colMatch)
-  
-  stopifnot(identical(colnames(meths)[1],colData$ID[colMatch[1]]))
-  
-  colnames(meths) <- row.names(colData)[colMatch]
-  meths = meths[!is.na(colMatch)]
-  
+  colnames(meths) <- rownames(colData)[colMatch]
   meths <- meths[order(colnames(meths))]
   
   colData$ID <- NULL

@@ -13,8 +13,7 @@ cells <- c("Bcell", "CD4Tcell", "CD8Tcell", "Treg", "NKcell","Granulocyte",
 if (!.validateType(exp_path,"file",throws=F)) {
   
   exps <- c("singh","GSE35069","GSE49667","GSE121483","GSE83458","GSE88824","GSE103211","GSE87196")
-    
-  get_data_set(exps)
+  exps <- get_data_set(exps,"proms.hg38")
   scms <- lapply(exps,function(exp) {
     m <- get(paste0("scm.",exp))
     names(rowRanges(m)) <- paste0("rid_",1:nrow(scm))

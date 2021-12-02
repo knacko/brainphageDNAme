@@ -9,6 +9,12 @@ get_sample_name = function(s) {
   return(tools::file_path_sans_ext(basename(s)))
 }
 
+remove_col <- function(scm,col) {
+  scm[,!(colnames(scm) %in% col)]
+}
+
+
+
 getcells <- function(scm) {
   
   
@@ -27,8 +33,10 @@ colbind = function(...) {
   )[]
 }
 
-generate_heatmap <- function(scm,assay = "score",grouping = NULL, ...) {
+generate_heatmap <- function(scm,assay = "score",grouping = NULL, n_cpg = NULL,...) {
   
+  if (!is.null(n_cpg)) scm <- reduce_scMethrix(scm,assay=assay,n_cpg = n_cpg,var="rand")
+
   mat <- as.matrix(get_matrix(scm,assay))
   type <- colData(scm)$Cell
   ha = HeatmapAnnotation(
@@ -41,10 +49,11 @@ generate_heatmap <- function(scm,assay = "score",grouping = NULL, ...) {
   
 }
 
-outer_match <- function(x,y) {
+'%allin%' <- function(x,y) {length(setdiff(x,y))==0}
+
+left_match <- function(x,y) {
   !is.na(match(x,y))
 }
-
 
 do_methylcibersort <- function(scm, assay= "score", cell_types = NULL, col = "Cell", ...) {
 
@@ -60,7 +69,7 @@ do_methylcibersort <- function(scm, assay= "score", cell_types = NULL, col = "Ce
 
   rownames(beta) <- names(rowRanges(scm))
   
-  fet <- feature.select.new(Stroma.matrix = beta, 
+  fet <- feature.select.new(Stroma.matrix = beta*100, 
                             Phenotype.stroma = as.factor(cell_types),
                             export = TRUE, silent = FALSE,...)
 

@@ -193,37 +193,6 @@ disjointWindow <- function(gr, window = 1000, neg.rm = T) {
   
   return(gr)
 }
-
-# disjointTile <- function(gr, n_tiles = NULL, width = NULL) {
-#   
-#   #- Input Validation --------------------------------------------------------------------------
-#   .validateType(gr,"GRanges")
-#   .validateType(n_tiles,c("integer","null"))
-#   .validateType(width,c("integer","null"))
-#   
-#   if (!xor(is.null(n_tiles),is.null(width))) {
-#     stop("Either n_tiles or width must be filled.")
-#   }
-#   
-#   #- Function code -----------------------------------------------------------------------------
-#   
-#   if (!is.null(width)) {
-#   
-#   row_idx <- which(width(gr) > width)
-#   new_size <- ceiling(width(gr)/width)*width
-#   
-#   
-#   
-#   
-#   } else {
-#     
-#     
-#     
-#     
-#   }
-#   
-#   
-# }
   
 reduceWithMcols <- function(gr, keep_col = "ID") {
 
@@ -241,21 +210,21 @@ reduceWithMcols <- function(gr, keep_col = "ID") {
   return(keepMcols(gr,GenomicRanges::reduce,col=keep_col))
 }  
 
-standardize.scMethrix <- function(scm, GEO, chain = NULL, probe.set = NULL) {
+standardize.scMethrix <- function(scm, GEO, chain = NULL, bin_region = NULL) {
   #- Input Validation --------------------------------------------------------------------------
   .validateExp(scm)
-  .validateType(chain,"chain")
-  .validateType(probe.set,"granges")
+  #.validateType(chain,c("chain","null"))
+  .validateType(bin_region,c("granges","null"))
   
   #- Function code -----------------------------------------------------------------------------
-
   colData(scm)$Experiment <- GEO
   metadata(scm)["Experiment"] <- GEO
-  if (str_detect(metadata(scm)$genome,"hg19") && !is.null(chain)) scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
-  scm <- bin_scMethrix(scm,regions = probe.set, fill=T)
+  # if (str_detect(metadata(scm)$genome,"hg19") && !is.null(chain)) 
+    scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
+  if (!is.null(bin_region)) scm <- bin_scMethrix(scm,regions = bin_region, fill=T)
   names(rowRanges(scm)) <- paste0("rid_",1:nrow(scm))
-  if (is_h5(scm)) scm <- convert_HDF5_scMethrix(scm)
-  if (nrow(scm) != length(probe.set)) {message("Wrong rows");browser()}
+ # if (is_h5(scm)) scm <- convert_HDF5_scMethrix(scm)
+  #if (nrow(scm) != length(probe.set)) {message("Wrong rows");browser()}
   return (scm) 
 }
 
@@ -290,198 +259,6 @@ getCellCount <- function(GEO, raw_dir, colData, cellTypes = c("CD8T","CD4T", "NK
                      returnAll = FALSE, meanPlot = FALSE, verbose = verbose, ...)
   return(est)
 }
-  
-#' 
-#' #------------------------------------------------------------------------------------------------------------
-#' #' Converts green and red idat files into bedgraph files via minfi
-#' #' @param in_dir string; the \code{\link{file.path}} of the directory containing the .IDAT files
-#' #' @param out_dir string; the \code{\link{file.path}} for the bedgraphs to be output into
-#' #' @param regex string; the regex to format the samples names with
-#' #' @param verbose boolean; whether to be chatty
-#' #' @return data.table; the reference CpGs in bedgraph format
-#' #' @export
-#' idat.to.scMethrix <- function(dir, colData, regex = "(.*)", array = "IlluminaHumanMethylation450k", annotation = "ilmn12.hg19", verbose = TRUE) {
-#'   
-#'   if (verbose) message("Converting idat to bed...",start_time())
-#'   
-#'   RGSet <- minfi::read.metharray.exp(dir, force=TRUE)
-#'   MSet <- preprocessNoob(RGSet)
-#'  # MSet <- minfi::preprocessIllumina(RGSet, bg.correct = TRUE, normalize = "controls") 
-#'   
-#'   RSet <- minfi::ratioConvert(MSet)
-#'   minfi::annotation(Rset) = c(array = array, annotation = annotation)
-#'   GRset <- minfi::mapToGenome(Rset)
-#'   
-#'   if (verbose) message("Data extracted  (",stop_time(),")")
-#'   
-#'   return(scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData, verbose = verbose))
-#' }
-#' 
-#' raw.idat.to.scMethrix <- function(GEO, raw_dir, colData, array = "IlluminaHumanMethylation450k", annotation = "ilmn12.hg19", verbose = TRUE) {
-#'   
-#'   supp_file <- GEOquery::getGEOSuppFiles(GEO, makeDirectory = FALSE, baseDir = substr(raw_dir,1,nchar(raw_dir)-1), filter_regex = ".*RAW.tar")
-#'   supp_file <- rownames(supp_file)
-#'   supp_files <- untar(tarfile = supp_file, list=TRUE)
-#'   supp_files <- supp_files[grepl(".*idat.gz$", supp_files,ignore.case = TRUE)]
-#'   supp_files <- untar(tarfile = supp_file, exdir = raw_dir, files = supp_files)
-#'   file.remove(supp_file)
-#'   #sapply(supp_files, function(file) GEOquery::gunzip(file, remove=TRUE))
-#'   #mix_files <- list.files(raw_dir, full.names=TRUE)
-#'   #file.remove(mix_files[which(rowSums(sapply(remove_mix, like, vector = mix_files)) == 1)])
-#'   
-#'   RGSet <- minfi::read.metharray.exp(raw_dir, force=TRUE)
-#'   MSet <- preprocessNoob(RGSet)
-#'   
-#'   RSet <- minfi::ratioConvert(MSet)
-#'   minfi::annotation(Rset) = c(array = array, annotation = annotation)
-#'   
-#'   if (verbose) message("Data extracted  (",stop_time(),")")
-#'   
-#'   return(scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData, verbose = verbose))
-#' }
-
-
-
-
-#------------------------------------------------------------------------------------------------------------
-#' If data is stored within dataTables for each respective sample, this function will parse the downloaded soft file from the GEO and generate bedgraphs from it.
-#' 
-#' For example, in this repo (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE35069), only the ratio values are desired for each respective sample. If you look at a particular sample (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM861635), the data table lists these values. 
-#' 
-#' Adapted from https://support.bioconductor.org/p/73941/
-#' @param soft string; the \code{\link{file.path}} of the .SOFT file downloaded from the GSE
-#' @param out_dir string; the \code{\link{file.path}} for the bedgraphs to be output into
-#' @param regex string; the regex to format the samples names with
-#' @param verbose boolean; whether to be chatty
-#' @return data.table; the reference CpGs in bedgraph format
-#' @export
-# soft.to.bed.old <- function(soft, out_dir, regex = "(.*)", verbose = TRUE) {
-#   
-#   if (verbose) message("Converting soft to bed...",start_time())
-#   
-#   soft <- GEOquery::getGEO(filename=in_file)
-#   gsmids <- names(soft@gsms)
-#   
-#   meths = NULL
-#   
-#   for(gsmid in gsmids) {
-#     
-#     meth <- soft@gsms[[gsmid]]@dataTable@table[,1:2]
-#     colnames(meth) <- c("ID_REF",gsmid)
-#     if (is.null(meths)) meths <- meth else meths <- merge(meths,meth,by="ID_REF")
-#     
-#   }
-#   
-#   if (verbose) message("Data extracted  (",split_time(),")")
-#   
-#   row.names(meths) <- meths[,"ID_REF"]
-#   meths$ID_REF <- NULL
-#   
-#   RSet = RatioSet(Beta = meths)
-# 
-# 
-#   return(ratioset.to.bed(RSet, out_dir = out_dir, regex = regex, verbose = verbose))
-# }
-
-
-
-# ## 
-# signal.to.bed <- function(in_dir, out_dir, regex = "(.*)", verbose = TRUE) {
-#   
-#   if (verbose) message("Converting signal intensities to bed...",start_time())
-#   
-#   files = list.files(in_dir, full.names=TRUE)
-#   
-#   meths = NULL
-#   
-#   for(file in files) {
-#     meth <- data.table::fread(file,sep="\t",header=T,skip="ID",col.names=c("cpg","beta"), key = "cpg", select = c(1:2))
-#     if (is.null(meths)) meths <- meth else meths <- merge(meths,meth,by="cpg")
-#   }
-#   
-# 
-#   
-#   RatioSet(Beta = betaM)
-# }
-
-#------------------------------------------------------------------------------------------------------------
-#' Helper function for idat.to.bed and soft.to.bed
-#' 
-#' Converts a minfi::ratioset into bedgraph files
-#' 
-#' @param RSet RatioSet; the RatioSet to convert into bedgraph files
-#' @inheritParams idat.to.bed
-#' @return data.table; the reference CpGs in bedgraph format
-#' @export
-ratioset.to.bed <- function(RSet, out_dir, regex = "(.*)", verbose = TRUE) {
-  
-  #if (verbose) message("Converting ratioset to bed...",start_time())
-  
-  
-  
-  rrng <- data.table::as.data.table(rowRanges(GRSet))
-  rrng[,c("width"):=NULL]
-  
-  if (verbose) message("Mapped to genome (",split_time(),")")
-  
-  for (i in 1:nrow(colData(GRSet))) {
-    
-    name <- gsub(regex,"\\1",row.names(colData(GRSet))[i])
-    
-    out <- cbind(rrng,as.data.table(getBeta(GRSet)[,i,drop=FALSE])[, lapply(.SD, round, 2)])
-    data.table::fwrite(out, paste0(out_dir,name,".bedgraph"), append = FALSE, sep = "\t", row.names = FALSE, 
-                       col.names = FALSE, quote = FALSE)
-    
-    if (verbose) message("Exported #",i,": ",name," (",split_time(),")")
-    
-  }
-  
-  if (verbose) message("All bed files exported (",split_time(),")")
-  
-  return(invisible(TRUE))
-}
-
-
-
-# 
-# 
-# array_to_granges <- function(anno, probes = NULL, chain = NULL, window = 0) {
-# 
-#   anno <- minfi::getAnnotation(anno)
-#   
-#   if (!is.null(probes)) {
-#     row_idx <- which(row.names(anno) %in% probes)
-#     if (length(row_idx) != length(probes)) message(length(probes)-length(row_idx), " probes not found in the annotation.")
-#     anno <- anno[row_idx,]
-#   }
-#   
-#   anno <- data.table(chr = anno$chr, start = anno$pos, end = anno$pos+1, strand = anno$strand, probeID = row.names(anno))
-#   anno <- GenomicRanges::makeGRangesFromDataFrame(anno, keep.extra.columns=T)
-# 
-#   if (!is.null(chain)) anno <- unlist(rtracklayer::liftOver(anno,chain)) # This is a one-to-many conversion. Flank if using this.
-#   if (window != 0) anno <- reduceKeepMcols(anno + (window/2))
-# 
-#   return(anno)
-# }
-# 
-# manifest_to_granges <- function(mani, probes = NULL, chain = NULL, window = 0) {
-# 
-#   if (!is.null(probes)) {
-#     row_idx <- which(row.names(anno) %in% probes)
-#     if (length(row_idx) != length(probes)) message(length(probes)-length(row_idx), " probes not found in the annotation.")
-#     anno <- anno[row_idx,]
-#   }
-#   
-#   anno <- data.table(chr = anno$chr, start = anno$pos, end = anno$pos+1, strand = anno$strand, probeID = row.names(anno))
-#   anno <- GenomicRanges::makeGRangesFromDataFrame(anno, keep.extra.columns=T)
-#   
-#   if (!is.null(chain)) anno <- unlist(rtracklayer::liftOver(anno,chain)) # This is a one-to-many conversion. Flank if using this.
-#   if (window != 0) anno <- reduceKeepMcols(anno + (window/2))
-#   
-#   return(anno)
-# }
-
-
 
 keepMcols <- function(gr,op,col = NULL) {
   

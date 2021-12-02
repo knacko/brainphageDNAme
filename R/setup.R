@@ -1,4 +1,4 @@
-list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery","testthat","stringr","IlluminaHumanMethylation450kanno.ilmn12.hg19","IlluminaHumanMethylation27kanno.ilmn12.hg19", "IlluminaHumanMethylationEPICanno.ilm10b4.hg19","openxlsx","AnnotationHub","future","ComplexHeatmap","ggplot2","ggforce","filesstrings","tibble","e1071","parallel","preprocessCore","ggpubr","cluster")
+list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery","testthat","stringr","IlluminaHumanMethylation450kanno.ilmn12.hg19","IlluminaHumanMethylation27kanno.ilmn12.hg19", "IlluminaHumanMethylationEPICanno.ilm10b4.hg19","openxlsx","AnnotationHub","future","ComplexHeatmap","ggplot2","ggforce","filesstrings","tibble","e1071","parallel","preprocessCore","ggpubr","cluster","TCGAbiolinks")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) {
   install.packages(new.packages)
@@ -75,24 +75,30 @@ if (!exists("probes.ill")) {
   probes.ill[["i450k.hg38.win.red"]] <- reduceWithMcols(probes.ill[["i450k.hg38.win"]])
 }
 
-file.450k <- "D:/Git/thesis_data/methSignatures/bin.cpgs.450k.hg38.tsv"
+file.cpgs.hg38 <- "D:/Git/thesis_data/methSignatures/cpgs.hg38.tsv"
+# file.450k <- "D:/Git/thesis_data/methSignatures/bin.cpgs.450k.hg38.tsv"
 
-if (file.exists(file.450k)) {
-  ref.gen.hg38 <- fread(file.450k)
+if (file.exists(file.cpgs.hg38)) {
+  cpgs.hg38 <- fread(file.cpgs.hg38)
 } else {
-  ref.gen.hg38 <- extract_CpGs(ref_genome = "BSgenome.Hsapiens.UCSC.hg38")
-  ref.gen.hg38 <- makeGRangesFromDataFrame(ref.gen.hg38)
-  ref.gen.hg38 <- subsetByOverlaps(gr.hg38,probes.ill[["i450k.hg38.win.red"]])
-  ref.gen.hg38 <- as.data.table(ref.gen.hg38)[,-c("width","strand")]
-  setnames(ref.gen.hg38, "seqnames", "chr")
-  fwrite(ref.gen.hg38, file = file.450k)
+  cpgs.hg38 <- extract_CpGs(ref_genome = "BSgenome.Hsapiens.UCSC.hg38")
+  #cpgs.hg38 <- makeGRangesFromDataFrame(ref.gen.hg38)
+  fwrite(cpgs.hg38, file = file.cpgs.hg38)
+  #ref.gen.hg38.450k <- subsetByOverlaps(gr.hg38,probes.ill[["i450k.hg38.win.red"]])
+  #ref.gen.hg38.450k <- as.data.table(ref.gen.hg38)[,-c("width","strand")]
+  #setnames(ref.gen.hg38.450k, "seqnames", "chr")
 }
 
-rm(file.450k, file.27k, file.EPIC)
+rm(file.450k, file.27k, file.EPIC, file.cpgs.hg38)
 
-# Load files that need signatures ---------------------------------------------------------------------------------
+# Read the promoters ----------------------------------------------------------------------------------------------
 
-source("D:/Git/monobrainDNAme/R/load_data_sets.R")
+proms.hg38 <- list(hg38 = fread("D:\\Git\\thesis_data\\methSignatures\\epd_promoters.bed", header = F, col.names = c("chr","start","end"), select  = c(1:3)))
+
+proms.hg38 <- makeGRangesFromDataFrame(proms.hg38)
+proms.hg38 <- promoters(proms.hg38, upstream=2000, downstream=200)
+
+probes.prom <- list(proms.hg38 = proms.hg38)
 
 # Setup the cell type lists ---------------------------------------------------------------------------------------
 cell_types <- list(all = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
@@ -101,5 +107,8 @@ cell_types <- list(all = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","Wh
                    progenitor = c("CMP","GMP","cMOP","HSCb","HSCm","MPPb","MPPm"),
                    basic = c("CD4Tcell","CD8Tcell","Treg","NKcell","Bcell","Monocyte","Granulocyte","Neutrophil","Eosinophils","Neuron","Glia","Endothelial","Glioma","WholeBlood"))
 
+# Load files that need signatures ---------------------------------------------------------------------------------
+
+source("D:/Git/monobrainDNAme/R/load_data_sets.R")
 # Load up various data --------------------------------------------------------------------------------------------
 #scm.big <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
