@@ -14,19 +14,12 @@ plan(sequential)
 source("D:/Git/monobrainDNAme/R/zzz.R")
 source("D:/Git/monobrainDNAme/R/accessory_funcs.R")
 source("D:/Git/monobrainDNAme/R/validate_inputs.R")
-source("D:/Git/monobrainDNAme/R/convert_to_bed.R")
-source("D:/Git/monobrainDNAme/R/feature.select.new.R")
-source("D:/Git/monobrainDNAme/R/file_input.R")
-source("D:/Git/monobrainDNAme/R/CIBERSORT.R")
+source("D:/Git/monobrainDNAme/R/raw_data_to_scMethrix.R")
+source("D:/Git/monobrainDNAme/R/feature_selection.R")
 #source("D:/Git/monobrainDNAme/R/load_data_sets.R")
 
-
 # Get liftover chains ---------------------------------------------------------------------------------------------
-if (!exists("ah")) ah <- AnnotationHub()
-if (!exists("chains")) {
-  chains <- query(ah , c("hg19","hg38", "chainfile"))
-  chains <- list("hg19ToHg38" = chains[['AH14150']], "hg38ToHg19" = chains[['AH14108']])
-}
+get_chains()
 
 # Get pan-glioma probe list (hg19) --------------------------------------------------------------------------------
 file <- "https://api.gdc.cancer.gov/data/d9027b0c-8d24-47ff-98fb-4066852e3ab3"
@@ -40,8 +33,8 @@ glm.probes.hg38 <- unlist(rtracklayer::liftOver(glm.probes.hg19,chains[["hg19ToH
 glm.probes.hg19.win <- disjointWindow(glm.probes.hg19,window=1000)
 glm.probes.hg38.win <- disjointWindow(glm.probes.hg38,window=1000)
 
-probes.glm <- list("raw" = glm.probelist, "hg19" = glm.probes.hg19, "hg38" = glm.probes.hg38,
-                   "hg19.win" = glm.probes.hg19.win, "hg38" = glm.probes.hg38.win)
+probes <- list("glm.hg19" = glm.probes.hg19, "glm.hg38" = glm.probes.hg38,
+                   "glm.win.hg19" = glm.probes.hg19.win, "glm.win.hg38" = glm.probes.hg38.win)
 
 rm(file,filename,glm.probelist,glm.probes.hg19,glm.probes.hg38,glm.probes.hg19.win,glm.probes.hg38.win)
 
@@ -62,18 +55,26 @@ if (!all(file.exists(file.450k,file.27k,file.EPIC))) {
 readAndRemove <- function(file,array = "450k") {makeGRangesFromDataFrame(remove_bad_probes(
                                  fread(file,sep="\t",header=T),array),keep.extra.columns = T)}
 
+readNotRemove <- function(file,array = "450k") {makeGRangesFromDataFrame(
+  fread(file,sep="\t",header=T),keep.extra.columns = T)}
+
 if (!exists("probes.ill")) {
-  probes.ill <- list("i27k.hg19" = readAndRemove(file.27k),
-                 "i450k.hg19" = readAndRemove(file.450k) ,
-                 "iEPIC.hg19" = readAndRemove(file.EPIC,"EPIC"),
-                 "i27k.hg38" = readAndRemove(func.19to38(file.27k)),
-                 "i450k.hg38" = readAndRemove(func.19to38(file.450k)),
-                 "iEPIC.hg38" = readAndRemove(func.19to38(file.EPIC)),"EPIC")
+  probes.ill <- list("ill.27k.hg19" = readAndRemove(file.27k),
+                 "ill.450k.hg19" = readAndRemove(file.450k),
+                 "ill.450k.raw.hg19" = readNotRemove(file.450k),
+                 "ill.EPIC.hg19" = readAndRemove(file.EPIC,"EPIC"),
+                 "ill.27k.hg38" = readAndRemove(func.19to38(file.27k)),
+                 "ill.450k.hg38" = readAndRemove(func.19to38(file.450k)),
+                 "ill.EPIC.hg38" = readAndRemove(func.19to38(file.EPIC)),"EPIC")
   
   
-  probes.ill[["i450k.hg38.win"]] <- disjointWindow(probes.ill[["i450k.hg38"]],window=1000)
-  probes.ill[["i450k.hg38.win.red"]] <- reduceWithMcols(probes.ill[["i450k.hg38.win"]])
+  probes.ill[["ill.450k.win.hg38"]] <- disjointWindow(probes.ill[["ill.450k.hg38"]],window=1000)
+  probes.ill[["ill.450k.win.red.hg38"]] <- reduceWithMcols(probes.ill[["ill.450k.win.hg38"]])
 }
+
+probes <- append(probes,probes.ill)
+rm(probes.ill)
+# Get raw CpGs -----------------------------------------------------------------------------------------------------
 
 file.cpgs.hg38 <- "D:/Git/thesis_data/methSignatures/cpgs.hg38.tsv"
 # file.450k <- "D:/Git/thesis_data/methSignatures/bin.cpgs.450k.hg38.tsv"
@@ -96,9 +97,15 @@ rm(file.450k, file.27k, file.EPIC, file.cpgs.hg38)
 proms.hg38 <- list(hg38 = fread("D:\\Git\\thesis_data\\methSignatures\\epd_promoters.bed", header = F, col.names = c("chr","start","end"), select  = c(1:3)))
 
 proms.hg38 <- makeGRangesFromDataFrame(proms.hg38)
+proms.hg19 <- rtracklayer::liftOver(proms.hg38,chains[["hg38ToHg19"]])
 proms.hg38 <- promoters(proms.hg38, upstream=2000, downstream=200)
+proms.hg19 <- promoters(proms.hg38, upstream=2000, downstream=200)
 
-probes.prom <- list(proms.hg38 = proms.hg38)
+probes.prom <- list(proms.hg38 = proms.hg38, proms.hg19 = proms.hg19)
+
+probes <- append(probes,probes.prom)
+
+rm(proms.hg38, proms.hg19, probes.prom)
 
 # Setup the cell type lists ---------------------------------------------------------------------------------------
 cell_types <- list(all = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
