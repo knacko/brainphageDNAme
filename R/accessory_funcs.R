@@ -1,3 +1,39 @@
+
+standardize.scMethrix <- function(scm, GEO, src_genome=NULL, out_genome=NULL, regions = NULL) {
+  
+  #- Input Validation --------------------------------------------------------------------------
+  .validateExp(scm)
+  #.validateType(chain,c("chain","null"))
+  .validateType(regions,c("granges","null"))
+  
+  #- Function code -----------------------------------------------------------------------------
+  colData(scm)$Experiment <- GEO
+  metadata(scm)["Experiment"] <- GEO
+  # if (str_detect(metadata(scm)$genome,"hg19") && !is.null(chain)) 
+  
+  if (!is.null(src_genome) && !is.null(out_genome)) {
+    if (src_genome == "hg19" && out_genome == "hg38") {
+      scm <- liftover_CpGs(scm,get_chains("hg19ToHg38"),target_genome = "hg38")
+    } else if (src_genome == "hg38" && out_genome == "hg19" ) {
+      scm <- liftover_CpGs(scm,get_chains("hg38ToHg19"),target_genome = "hg19")
+    }
+  }
+  
+  if (!is.null(regions)) {
+    scm <- subset_scMethrix(scm,regions = regions)
+    scm <- convert_scMethrix(scm,type="memory")
+    scm <- bin_scMethrix(scm,regions = regions, fill=T, batch_size = 10)
+  }
+  
+  #names(rowRanges(scm)) <- paste0("rid_",1:nrow(scm))
+  #if (is_h5(scm)) scm <- convert_HDF5_scMethrix(scm)
+  #if (nrow(scm) != length(probe.set)) {message("Wrong rows");browser()}
+  return (scm) 
+}
+
+
+
+
 mkdirs <- function (...) {
   
   dirs <- list(...)
@@ -13,10 +49,7 @@ remove_col <- function(scm,col) {
   scm[,!(colnames(scm) %in% col)]
 }
 
-
-
 getcells <- function(scm) {
-  
   
   return(table(colData(scm)$Cell))
   
@@ -51,30 +84,12 @@ generate_heatmap <- function(scm,assay = "score",grouping = NULL, n_cpg = NULL,.
 
 '%allin%' <- function(x,y) {length(setdiff(x,y))==0}
 
+
 left_match <- function(x,y) {
   !is.na(match(x,y))
 }
 
-do_methylcibersort <- function(scm, assay= "score", cell_types = NULL, col = "Cell", ...) {
 
-  if (is.null(cell_types)) {
-    beta <- get_matrix(scm,assay)
-    cell_types = colData(scm)[[col]]
-    col_idx <- 1:ncol(scm)
-  } else {
-    col_idx <- which(!is.na(match(colData(scm)[[col]],cell_types)))
-    cell_types <- colData(scm)[[col]][col_idx]
-    beta <- get_matrix(scm,assay)[,col_idx]
-  }
-
-  rownames(beta) <- names(rowRanges(scm))
-  
-  fet <- feature.select.new(Stroma.matrix = beta*100, 
-                            Phenotype.stroma = as.factor(cell_types),
-                            export = TRUE, silent = FALSE,...)
-
-  return(scm[row.names(fet$SignatureMatrix),col_idx])
-}
 
 corner <- function(mtx, n=30) {
   mtx <- mtx[1:n,1:n]
@@ -89,7 +104,6 @@ headless <- function(mtx, n=5) {
   row.names(mtx) <- NULL
   mtx
 }
-
 
 #------------------------------------------------------------------------------------------------------------
 #' Loads reference CpGs from files. Will download and save them if the files are not present
@@ -323,29 +337,28 @@ reduceWithMcols <- function(gr, keep_col = "ID") {
   return(keepMcols(gr,GenomicRanges::reduce,col=keep_col))
 }  
 
-standardize.scMethrix <- function(scm, GEO, chain = NULL, bin_region = NULL) {
-  #- Input Validation --------------------------------------------------------------------------
-  .validateExp(scm)
-  #.validateType(chain,c("chain","null"))
-  .validateType(bin_region,c("granges","null"))
+
+get_chains <- function(chain = NULL) {
   
-  #- Function code -----------------------------------------------------------------------------
-  colData(scm)$Experiment <- GEO
-  metadata(scm)["Experiment"] <- GEO
-  # if (str_detect(metadata(scm)$genome,"hg19") && !is.null(chain)) 
-  scm <- liftover_CpGs(scm,chain,target_genome = "hg38")
-  if (!is.null(bin_region)) scm <- bin_scMethrix(scm,regions = bin_region, fill=T)
-  names(rowRanges(scm)) <- paste0("rid_",1:nrow(scm))
-  # if (is_h5(scm)) scm <- convert_HDF5_scMethrix(scm)
-  #if (nrow(scm) != length(probe.set)) {message("Wrong rows");browser()}
-  return (scm) 
+  if (!exists("ah")) ah <- AnnotationHub()
+  if (!exists("chains")) {
+    chains <- query(ah , c("hg19","hg38", "chainfile"))
+    chains <- list("hg19ToHg38" = chains[['AH14150']], "hg38ToHg19" = chains[['AH14108']])
+    assign("chains", chains, envir = .GlobalEnv)
+  }
+
+  if (is.null(chain)) return(invisible(TRUE))
+  
+  if (chain == "hg19ToHg38") return(chains[["hg19ToHg38"]])
+  if (chain == "hg38ToHg19") return(chains[["hg38ToHg19"]])
 }
 
 
 # raw.idat.to.scMethrix -------------------------------------------------------------------------------------------
-getCellCount <- function(GEO, raw_dir, colData, cellTypes = c("CD8T","CD4T", "NK","Bcell","Mono","Gran"), array = c("IlluminaHumanMethylation450k",
-                                                                                                                    "IlluminaHumanMethylationEPIC",
-                                                                                                                    "IlluminaHumanMethylation27k"), verbose = TRUE,...) {
+getCellCount <- function(GEO, raw_dir, colData, cellTypes = c("CD8T","CD4T", "NK","Bcell","Mono","Gran"), 
+                         array = c("IlluminaHumanMethylation450k",
+                                   "IlluminaHumanMethylationEPIC",
+                                   "IlluminaHumanMethylation27k"), verbose = TRUE,...) {
   #- Input Validation --------------------------------------------------------------------------
   .validateType(GEO,"string")
   .validateType(raw_dir,"directory")

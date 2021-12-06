@@ -1,3 +1,48 @@
+#---- do_methylcibersort -------------------------------------------------------------------------------------
+#' @param scm scMethrix; The scMethrix object
+#' @param assay string; The assay to use
+#' @param cell_types string; Cells to ignore
+#' @param cell_col string; The column in colData(scm) that contains the cell annotation
+#' @param ... Arguments passed to feature.select.new
+#'
+#' @return scMethrix object containing only the selected features
+#' @export
+#'
+#' @examples
+do_methylcibersort <- function(scm, assay= "score", ignore_cells = NULL, cell_col = "Cell", ...) {
+  
+  .validateExp(scm)
+  .validateAssay(scm,assay)
+  .validateType(ignore_cells,c("string","null"))
+  .validateType(cell_col,"string")
+  
+  #Remove cells, if specified
+  if (is.null(ignore_cells)) {
+    col_idx <- 1:ncol(scm)
+  } else {
+    col_idx <- which(!is.na(match(colData(scm)[[cell_col]],ignore_cells)))
+  }
+
+  beta <- get_matrix(scm,assay)[,col_idx]
+  rownames(beta) <- names(rowRanges(scm))
+  
+  cell_types <- as.factor(colData(scm)[[cell_col]][col_idx])
+  
+  fet <- feature.select.new(Stroma.matrix = beta, Phenotype.stroma = cell_types,
+                            export = TRUE, silent = FALSE,...)
+  
+  return(scm[row.names(fet$SignatureMatrix),col_idx])
+}
+
+
+#---- feature.select.new -------------------------------------------------------------------------------------
+
+## [ Edited Feature Selection Function from MethylCibersort 0.2.1 - AL (2021) ] ////////////////////
+
+## Changes made to function:
+## added argument to specify output directory instead of defaulting to getwd()
+
+
 ## [ Edited Feature Selection Function from MethylCibersort 0.2.1 - YG, DW (2018) ] ////////////////////
 
 ## Changes made to function:
@@ -17,6 +62,7 @@ feature.select.new <- function(MaxDMPs = 100,                       ## maximum d
                                export = TRUE,                       ## save a table of signature results
                                export.fit = TRUE,                   ## export the limma result
                                export.cpg = TRUE,                   ## export the CpGs selected
+                               output.dir = getwd(),
                                sigName = "methylCibersort",         ## name appended to start of filename
                                Stroma.matrix = NULL,                ## matrix of betas for populations
                                Phenotype.stroma = NULL,             ## pheno that corresponds to Stroma.matrix
@@ -75,7 +121,7 @@ feature.select.new <- function(MaxDMPs = 100,                       ## maximum d
   if (all(c(export,export.fit))){
     message("Saving limma fit results")
     fN <- paste(sigName, deltaBeta, MaxDMPs, "Fit_list.rds", sep = "_")
-    saveRDS(FitList, fN)
+    saveRDS(FitList, paste0(output.dir,"/",fN))
   } # end if
   
   message("Calculating population medians")
@@ -132,7 +178,7 @@ feature.select.new <- function(MaxDMPs = 100,                       ## maximum d
     fN <- paste(sigName, deltaBeta, MaxDMPs, "all_Nonzeros.txt", sep = "_")
     write.table(data.frame(ID = Nonzeros,
                            PopID = rownames(Nonzeros)), 
-                file = fN, 
+                file = paste0(output.dir,"/",fN), 
                 sep = "\t", 
                 row.names = FALSE, 
                 quote = FALSE)
@@ -164,14 +210,14 @@ feature.select.new <- function(MaxDMPs = 100,                       ## maximum d
     
     fN <- paste(sigName, deltaBeta, MaxDMPs, "Signature.txt", sep = "_")
     write.table(Collapsed, 
-                file = fN, 
+                file = paste0(output.dir,"/",fN), 
                 sep = "\t", 
                 row.names = FALSE, 
                 quote = FALSE)
     
     fN <- paste(sigName, deltaBeta, MaxDMPs, "CpG_Annotation.txt", sep = "_")
     write.table(Nonzeros.anno, 
-                file = fN, 
+                file = paste0(output.dir,"/",fN), 
                 sep = "\t", 
                 row.names = FALSE, 
                 quote = FALSE)
@@ -767,5 +813,20 @@ CIBERSORT <- function(sig_matrix = lm22, mixture_file, perm, QN = TRUE, absolute
   obj
 }
 
-
+# design.pairs <-
+#   function(levels) {
+#     n <- length(levels)
+#     design <- matrix(0,n,choose(n,2))
+#     rownames(design) <- levels
+#     colnames(design) <- 1:choose(n,2)
+#     k <- 0
+#     for (i in 1:(n-1))
+#       for (j in (i+1):n) {
+#         k <- k+1
+#         design[i,k] <- 1
+#         design[j,k] <- -1
+#         colnames(design)[k] <- paste(levels[i],"-",levels[j],sep="")
+#       }
+#     design
+#   }
 
