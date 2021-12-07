@@ -1,7 +1,7 @@
 home_dir <- "D:/Git/thesis_data/"
 cpg_dir <- "D:/Git/sampleData/ref_cpgs/"
 chain_dir <- "D:/Git/thesis_data/chains/"
-probe.set <- probes.ill#probes.ill[["i450k.hg38.win.red"]]
+#probe.set <- probes.ill#probes.ill[["i450k.hg38.win.red"]]
 chain <- chains[["hg19ToHg38"]]
 cell.list <- cell_types[["all"]]
 
@@ -12,9 +12,9 @@ delete_data_set <- function(...) {
   })
 }
 
-soft = T
+soft = TRUE
 
-type <- list(singh =    c(!soft, NULL,   "hg38", NULL),
+type <- list(singh =    c(!soft, NA,   "hg38", "EPIC"),
              GSE35069 =  c(soft, "soft", "hg19", "n450k"),
              GSE41826 =  c(soft, "soft", "hg19", "n450k"),
              GSE49618 =  c(soft, "idat", "hg19", "n450k"),
@@ -24,7 +24,7 @@ type <- list(singh =    c(!soft, NULL,   "hg38", NULL),
              GSE63409 =  c(soft, "idat", "hg19", "n450k"),
              GSE66351 =  c(soft, "idat", "hg19", "n450k"),
              GSE83458 =  c(soft, "soft", "hg19", "n450k"),
-             GSE87196 =  c(soft, "bed",  "hg38",  NULL),
+             GSE87196 =  c(soft, "bed",  "hg38",  NA),
              GSE88824 =  c(soft, "idat", "hg19", "n450k"),
              #GSE96612 =  c(soft, "bed", "hg19",  NULL),
              GSE98203 =  c(soft, "idat", "hg19", "n450k"),
@@ -37,50 +37,42 @@ type <- list(singh =    c(!soft, NULL,   "hg38", NULL),
              GSE128654 = c(soft, "idat", "hg19", "n450k"),
              GSE144804 = c(soft, "idat", "hg19", "EPIC"),
              #GSE151506 = c(soft, "bed",  NULL),
-             GSE151506.mgsig = c(!soft, "bed",  NULL),
+             #GSE151506.mgsig = c(!soft, "bed",  "hg38", NA),
              GSE164149 = c(soft, "idat", "hg19", "EPIC"),
              GSE166844 = c(soft, "var", "hg19",  "EPIC")
+             #test = c()
 )
 
 #get_data_set("GSE87196",region="all")
 #get_data_set(names(type),region="proms.hg38")
 #get_data_set(names(type),region="proms.hg38")
 
-get_data_set <- function(GEO = names(type), regions = "all", assign.it = F, merge = F, cells = NULL) {
-
+get_data_set <- function(GEO = names(type), regions = "all", genome = "hg38", assign.it = F, merge = F, cells = NULL) {
 
   if (length(GEO) > 1) {
     
-    exps <- lapply(GEO,get_data_set,regions=regions)
-
-    if (assign.it) {
-      return(exps)
-    }
-
+    exps <- lapply(GEO,get_data_set,genome = genome, cells = cells, regions = regions)
     names(exps) <- GEO
-    
-    scm <- exps[[1]]
+
+    if (assign.it || !merge) return(exps)
 
     if (merge == T) {
+      scm <- exps[[1]]
       if (length(exps) > 1) {
         for (i in 2:length(exps)) {
           message("Adding ",names(exps)[i])
           scm <- merge_scMethrix(scm, exps[[i]], by = "col",verbose=F)
         }
-
-        if (!is.null(cells)) scm <- scm[,(outer_match(colData(scm)$Cell,cells)) ]
-        scm <- list(scm)
       }
     }
     
-    if (length(scm) == 1) scm <- scm[[1]]
-
     return(scm)
-  } else {
     
+  } else {
+
     has_soft = type[[GEO]][1]
     import_type = type[[GEO]][2]
-    genome = type[[GEO]][3]
+    src_genome = type[[GEO]][3]
     array = type[[GEO]][4]
     remove_idx <- cd <- NULL
     
@@ -88,13 +80,13 @@ get_data_set <- function(GEO = names(type), regions = "all", assign.it = F, merg
 
     base_dir <- paste0(home_dir, GEO, "/")
     exp_dir <- paste0(base_dir, "exp/")
-    exp_name <- paste0(c("scm",GEO,regions), collapse=".")
-    exp_all <- paste0(exp_dir,"scm.",GEO,".all.rds")
+    exp_name <- paste0(c("scm",GEO,genome,regions), collapse=".")
+    exp_all <- paste0(exp_dir,"scm.",GEO,".",src_genome,".all.rds")
     exp_path <- paste0(exp_dir,exp_name,".rds")
 
-    if (!.validateType(exp_path, "file", throws = F)) {
+    if (!.validateExp(exp_path, throws = F)) {
       
-      if (!.validateType(exp_all, "file", throws = F)) {
+      if (!.validateExp(exp_all, throws = F)) {
         raw_dir <- paste0(base_dir, "raw/")
         mkdirs(base_dir, raw_dir, exp_dir)
         
@@ -106,25 +98,15 @@ get_data_set <- function(GEO = names(type), regions = "all", assign.it = F, merg
         }
 
         if (GEO == "singh") {
+          
 # singh -----------------------------------------------------------------------------------------------------------
 # Types: Microglia
 # Paper: https://actaneurocomms.biomedcentral.com/articles/10.1186/s40478-021-01249-9#Sec10
 # GEO link:
 # Citation: Singh, O., Pratt, D., & Aldape, K. (2021). Immune cell deconvolution of bulk DNA methylation data reveals an association with methylation class, key somatic alterations, and cell state in glial/glioneuronal tumors. Acta neuropathologica communications, 9(1), 1-17.
           colData <- data.frame(row.names = "Singh", Cell = "Microglia")
-          stopifnot(length(setdiff(colData$Cell, cell_types[["all"]])) == 0)
-          
-          files <- list.files(raw_dir, full.names = TRUE, pattern = ".*idat$", ignore.case = T)
-          RGset <- minfi::read.metharray.exp(raw_dir, force = TRUE)
-          Mset <- preprocessNoob(RGset)
-          colnames(Mset) <- "Singh"
-          Rset <- minfi::ratioConvert(Mset)
-          GRset <- minfi::mapToGenome(Rset)
-          GRset <- convertArray(GRset, outType = "IlluminaHumanMethylation450k")
-          
-          scm <- scMethrix::as.scMethrix.GRset(GRset = GRset, colData = colData)
-          colnames(colData(scm)) <- "Cell" # TODO: Not sure why this is necessary
-          
+          scm <- raw.idat.to.scMethrix(GEO = GEO, raw_dir = raw_dir, colData = colData, array = array)
+
         } else if (GEO == "GSE151506.mgsig"){
           
           files <- list.files(raw_dir, full.names = TRUE, pattern = ".*bedgraph$", ignore.case = T)
@@ -363,34 +345,30 @@ get_data_set <- function(GEO = names(type), regions = "all", assign.it = F, merg
           }
         }
         
-        scm <- standardize.scMethrix(scm, GEO, chain, bin_region = NULL)
+        scm <- standardize.scMethrix(scm, GEO)
         scm <- scMethrix::save_scMethrix(scm, dest = exp_all)
       } else {
         scm <- scMethrix::load_scMethrix(dest = exp_all)
       }
 
-      if (regions != "all") {
-        scm <- standardize.scMethrix(scm, GEO = GEO, chain = chain, bin_region = probe.set[[regions]])
+      if (regions != "all" || genome != src_genome) {
+        
+        scm <- standardize.scMethrix(scm, GEO = GEO, src_genome = src_genome, out_genome = genome,  regions = probes[[regions]])
         scm <- scMethrix::save_scMethrix(scm, dest = exp_path)
       }
     } else {
       scm <- scMethrix::load_scMethrix(exp_path)
     }
     
-    if (!is.null(cells)) scm <- scm[,(outer_match(colData(scm)$Cell,cells)) ]
+    if (!is.null(cells)) scm <- scm[,(left_match(colData(scm)$Cell,cells))]
     
     if (assign.it) {
       assign(exp_name, scm, envir = .GlobalEnv)
-    } else {
-      return (scm)
+      return(TRUE)
     }
   }
   
-  if (.validateExp(scm,throws = F)) {
-    return(exp_name)
-  } else {
-    stop("Nothing returned for ",exp_name,". Please confirm the experiment exists.")
-  }
+  return(scm)
 }
 
 #         
