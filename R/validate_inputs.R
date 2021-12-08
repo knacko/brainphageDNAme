@@ -80,104 +80,6 @@
   }
 }
 
-# .validateType <- function(input = NULL, type=c("Integer","Numeric","Character","String","Boolean","Logical","Vector",
-#                                                "List","File","Directory","GRanges","GenomicRanges","Function","Null",
-#                                                "Dataframe","DF","S4")) {
-# 
-#   if (b) browser()
-#   
-#   if (length(type) == length(eval(formals(.validateType)[["type"]]))) {
-#     stop("No valid type specified.")
-#   }
-#   
-#   types <- sapply(type,function(type) .validateArg(type,.validateType))
-#   inputs <- input#list(input,NULL) # necessary to avoid iterating through iterable objects (e.g. GRanges)
-# 
-#   for (type in types) {
-#     
-#     #For container formats that are iterable
-#     if (c("GRanges","GenomicRanges","S4")) {
-#       
-#       valid <- F
-#       
-#       for (type in types) {
-#         
-#         if(type == "Vector"){
-#           valid <- is.vector(input)
-#         } else if(type == "List"){
-#           valid <- is.list(input)
-#         } else if(type == "GRanges" | type == "GenomicRanges"){
-#           valid <- is(input, "GRanges")
-#         } else if (type == "Dataframe" | type == "DF") {
-#           valid <- is.data.frame(input) 
-#         } else if (type == "S4") {
-#           valid <- isS4(input) 
-#         } else {
-#           stop("Invalid type with '",type,"'. This type is not supported. Also, this should never be reached.")
-#         }
-#         
-#       }
-#       
-#       if (!valid) {
-#         stop("Invalid type input for '",substitute(input),"'. Must be of type: '",
-#              paste0(type, collapse="', '"),"'", call. = FALSE)
-#       }
-#     }
-#       
-#       
-#     } else {
-#       for (input in inputs) {#inputs[1:(length(inputs)-1)]) {
-#         
-#         valid <- F
-#         
-#         for (type in types) {
-#           
-#           if (type == "Integer") {
-#             if(is.numeric(input)) valid <- (input == round(input))
-#           } else if (type == "Numeric") {
-#             valid = is.numeric(input) 
-#           } else if (type == "Character") {
-#             valid = is.character(input) && nchar(input)==1
-#           } else if (type == "String") {
-#             valid = is.character(input) 
-#           } else if(type == "Boolean" | type == "Logical"){
-#             valid <- is.logical(input)
-#           } else if (type == "File") {
-#             valid <- all(file.exists(input))
-#           } else if (type == "Directory") {
-#             valid <- all(dir.exists(input))
-#           } else if (type == "Function") {
-#             valid <- is.function(i)
-#           } else if (type == "Null") {
-#             valid <- is.null(input) 
-#           } else {
-#             stop("Invalid type with '",type,"'. This type is not supported. Also, this should never be reached.")
-#           }
-#           
-#         }
-#         
-#         if (!valid) {
-#           stop("Invalid type input for '",substitute(input),"'. Must be of type: '",
-#                paste0(type, collapse="', '"),"'", call. = FALSE)
-#         }
-#       }
-#       
-#     }
-#     
-#     
-#     
-#     
-#     
-#   }
-#   
-#   
-#   
-#   
-#   
-#   
-#   return(invisible(TRUE))
-# }
-
 #--- .validateType ------------------------------------------------------------------------------------------
 .validateType <- function(input = NULL, type=c("Integer","Numeric","Character","String","Boolean","Logical","Vector",
                                                "List","File","Directory","GRanges","GenomicRanges","Function","Null",
@@ -269,35 +171,35 @@
 
 #--- .validateExp -------------------------------------------------------------------------------------------
 #' Validates to see if object is a proper scMethrix object
-#' @param scm scMethrix; the experiment object to test
-#' @param h5_dir string; the directory of an experiment object
+#' @param scm scMethrix; the experiment object to test. Can be either an in-memory object, a file path, or a directory path.
 #' @param throws boolean; whether to throw an error on a missing experiment. Will return FALSE on missing otherwise.
+#' @param verbose boolean; be chatty
 #' @return invisible(TRUE), if the object is valid. Error or FALSE if not.
-.validateExp <- function(scm = NULL, h5_dir = NULL, throws = T) {
+.validateExp <- function(scm = NULL, throws = TRUE, verbose = FALSE) {
+
+  if (!is(scm, "scMethrix")) {
   
-  if (!is.null(h5_dir)) {
-    
-    .validateType(h5_dir,"directory")
-    
+    if (!.validateType(scm,c("file","directory"), throws = F)) {
+      
+      if (!throws)  return(invisible(FALSE))
+        
+      stop(paste0("Invalid scMethrix object supplied for '",substitute(scm),
+                    "'. Input must either be type 'scMethrix', or a 'file', or 'directory' for",
+                    " an experiment save with save_scMethrix()."), call. = FALSE)
+    }
+  
     tryCatch(
       expr = {
-        scm <- load_scMethrix(h5_dir)
+        scm <- load_scMethrix(scm, verbose = verbose)
       },
       error = function(e){ 
-        if (throws) {stop("Invalid scMethrix object found at ",h5_dir, call. = FALSE)
+        if (throws) {stop("Invalid scMethrix object found at ",scm, call. = FALSE)
         } else {return(invisible(FALSE))}
       }
     )
   }
-  
-  if (!is.null(scm)) {
-    if (!is(scm, "scMethrix")) {
-      if (throws) {stop(paste0("Invalid scMethrix object supplied for '",substitute(scm),"'"), call. = FALSE)
-      } else {return(invisible(FALSE))}
-    }
-  }
-  
-  return(invisible(TRUE))
+   
+  return(invisible(TRUE)) 
 }
 
 #--- .validateValue -----------------------------------------------------------------------------------------
