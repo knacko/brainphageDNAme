@@ -36,10 +36,11 @@ message("k = ",k)
 scm <- impute_regions(scm,k=k)
 names(rowRanges(scm)) <- paste0("rid_",1:nrow(scm))
 scm.features <- do_methylcibersort(scm, assay="impute",MaxDMPs = DMPs, deltaBeta = 0.25, output.dir = exp_dir)
-
-file.sigmtx <- list.files(exp_dir, full.names = TRUE, pattern = paste0(".*",DMPs,"_Signature.txt$"), ignore.case = T)
+metadata(scm.features)["top_features_selected"] <- DMPs
 feats.top <- rowRanges(scm.features)
-
+saveRDS(feats.top,paste0(exp_dir,"methylCibersort_0.25_",DMPs,"_rowRanges.rds"))
+file.sigmtx <- list.files(exp_dir, full.names = TRUE, pattern = paste0(".*",DMPs,"_Signature.txt$"), ignore.case = T)
+file.features <- paste0("methylCibersort_0.25_",DMPS,"_rowRanges.rds")
 
 # Graph the features ----------------------------------------------------------------------------------------------
 scm.features <- dim_red_scMethrix(scm.features,type="tSNE",assay="impute",perplexity=65,max_iter=2000)
@@ -97,6 +98,7 @@ if (useCairo) {
 }
 
 ## Make a synthetic mix of GSE110554 --------------------------------------------------------------------------------
+feats.top <- readRDS(file.features)
 scm <- get_data_set(c("GSE110554"), cells = cells)
 scm <- bin_scMethrix(scm,regions = feats.top,fill=T)
 scm <- impute_regions(scm,k=7)
@@ -165,6 +167,7 @@ if (useCairo) {
 }
 
 # Make synthetic mix of PBMC --------------------------------------------------------------------------------------
+feats.top <- readRDS(file.features)
 scm <- get_data_set(c("GSE112618"))
 scm <- bin_scMethrix(scm,regions = feats.top,fill=T)
 scm <- impute_regions(scm,k=2)
