@@ -144,15 +144,6 @@ scm <- merge_scMethrix(scm1,scm2,by="col")
 
 # Compare to the reference microglia ------------------------------------------------------------------------------
 
-
-
-
-
-
-
-
-
-
 scm <- get_data_set(c("singh","GSE151506.mgsig"), regions = "i450k.hg38.win", merge=T, cells = "Microglia")
 scm1 <- scm[,which(row.names(colData(scm)) != "Singh")]
 scm1 <- get_rowdata_stats(scm1)
