@@ -1,4 +1,4 @@
-
+#---- standardize.scMethrix --------------------------------------------------------------------------------------
 standardize.scMethrix <- function(scm, GEO, src_genome=NULL, out_genome=NULL, regions = NULL) {
   
   #- Input Validation --------------------------------------------------------------------------
@@ -31,30 +31,77 @@ standardize.scMethrix <- function(scm, GEO, src_genome=NULL, out_genome=NULL, re
   return (scm) 
 }
 
+#---- is.empty ---------------------------------------------------------------------------------------
+#' Checks to see if an object is NULL, NA, zero length, whitespace
+#' Adapted from https://github.com/cran/rapportools/blob/master/R/utils.R
+#' @param x an object to check its emptiness
+#' @param trim trim whitespace? (\code{TRUE} by default)
+#' @param ... additional arguments for \code{\link{sapply}}
+#' @return integer; 1 if windows, or some number of threads between 1 and parallel::detectCores
+is.empty <- function(input, trim = TRUE, ...) {
+  if (length(input) <= 1) {
+    if (is.null(input))
+      return (TRUE)
+    if (length(input) == 0)
+      return (TRUE)
+    if (is.na(input) || is.nan(input))
+      return (TRUE)
+    if (is.character(input) && nchar(ifelse(trim, trim.space(input), input)) == 0)
+      return (TRUE)
+    if (is.logical(input) && !isTRUE(input))
+      return (TRUE)
+    if (is.numeric(input) && input == 0)
+      return (TRUE)
+    return (FALSE)
+  } else
+    any(sapply(input, is.empty, trim = trim, ...))
+}
 
-
-
+#---- mkdirs ----------------------------------------------------------------------------------------------------------
+#' Creates multiple directories at the same time
+#' @param ... string; a list of directories to create
+#' @return nothing
+#' @export
+#' @examples
 mkdirs <- function (...) {
   
   dirs <- list(...)
   for (i in 1:length(dirs)) {dir.create(dirs[[i]], showWarnings = FALSE)}
 }
 
+#---- get_sample_name -------------------------------------------------------------------------------------------------
+#' Strips the path and extension from a file path, so only file name remains
+#' @param s string; a file path for a file
+#' @return string; the name of the file without the path or extension
+#' @export
+#' @examples
 get_sample_name = function(s) {
   if (!is.character(s)) stop("Must be a string file path")
   return(tools::file_path_sans_ext(basename(s)))
 }
 
+#---- remove_col ------------------------------------------------------------------------------------------------------
+#' Remove a sample from an scMethrix object
+#' @param scm scMethrix; an scMethrix object
+#' @param col string; the name of a sample in the scMethrix object
+#' @return scMethrix; the output object with the specified column removed
+#' @export
+#' @examples
 remove_col <- function(scm,col) {
   scm[,!(colnames(scm) %in% col)]
 }
 
+#---- getcells --------------------------------------------------------------------------------------------------------
+#' Get table of cells for an scMethrix object
+#' @param scm scMethrix; the object to the table of cell types
+#' @return table; count of cells in the scMethrix object
+#' @export
+#' @examples
 getcells <- function(scm) {
-  
   return(table(colData(scm)$Cell))
-  
 }
 
+#---- colbind ---------------------------------------------------------------------------------------------------------
 #' A faster version of cbind when trying to combine lists of data.tables
 #' @param ... A list of data.tables with identical # of rows
 #' @return data.table; the cbinded output 
@@ -66,6 +113,16 @@ colbind = function(...) {
   )[]
 }
 
+#---- generate_heatmap ------------------------------------------------------------------------------------------------
+#' Generates a ComplexHeatmap from an scMethrix object
+#' @param scm scMethrix; the object to plot
+#' @param assay string; the assay in the scMethrix object
+#' @param grouping string; the column in colData in which to group into
+#' @param n_cpg string; the number of CpGs to plot
+#' @param ... Additional arguments to Heatmap()
+#' @return
+#' @export
+#' @examples
 generate_heatmap <- function(scm,assay = "score",grouping = NULL, n_cpg = NULL,...) {
   
   if (!is.null(n_cpg)) scm <- reduce_scMethrix(scm,assay=assay,n_cpg = n_cpg,var="rand")
@@ -82,15 +139,57 @@ generate_heatmap <- function(scm,assay = "score",grouping = NULL, n_cpg = NULL,.
   
 }
 
+#---- %allin% ----------------------------------------------------------------------------------------------------
+#' Checks for presence of all elements in another vector#'
+#' @param x vector; the elements in which to search for  
+#' @param y vector; the vector to search in
+#' @return boolean; TRUE if all elements in x are in y, FALSE if not
+#' @export
+#' @examples
 '%allin%' <- function(x,y) {length(setdiff(x,y))==0}
 
+#---- %arein% ----------------------------------------------------------------------------------------------------
+#' Returns all elements of x that are in y
+#' @param x vector; the elements in which to search for  
+#' @param y vector; the vector to search in
+#' @return vector; all elements of x that are in y
+#' @export
+#' @examples
+'%arein%' <- function(x,y) {x[!is.na(match(x,y))]}
 
+#---- left_match ------------------------------------------------------------------------------------------------------
+#' Checks whether elements of x are in y
+#' @param x vector; the elements in which to search for  
+#' @param y vector; the vector to search in
+#' @return vector; all of the elements in x that appear in y
+#' @export
+#'
+#' @examples
 left_match <- function(x,y) {
   !is.na(match(x,y))
 }
 
+#---- headless --------------------------------------------------------------------------------------------------------
+#' Displays n rows of a matrix with the column and row names removed. Basically head() with only data
+#' @param mtx matrix; the matrix to display
+#' @param n integer; the number of rows to display
+#' @return matrix; the formatted matrix
+#' @export
+#' @examples
+headless <- function(mtx, n=5) {
+  mtx <- head(mtx,n)
+  colnames(mtx) <- NULL
+  row.names(mtx) <- NULL
+  mtx
+}
 
-
+#---- headless --------------------------------------------------------------------------------------------------------
+#' Displays n rows and n cols of a matrix with the column and row names removed.
+#' @param mtx matrix; the matrix to display
+#' @param n integer; the number of rows and columns to display
+#' @return matrix; the formatted matrix
+#' @export
+#' @examples
 corner <- function(mtx, n=30) {
   mtx <- mtx[1:n,1:n]
   colnames(mtx) <- NULL
@@ -98,14 +197,7 @@ corner <- function(mtx, n=30) {
   mtx
 }
 
-headless <- function(mtx, n=5) {
-  mtx <- mtx[1:n,]
-  colnames(mtx) <- NULL
-  row.names(mtx) <- NULL
-  mtx
-}
-
-#------------------------------------------------------------------------------------------------------------
+#---- load_ref_cpgs ---------------------------------------------------------------------------------------------------
 #' Loads reference CpGs from files. Will download and save them if the files are not present
 #' @param dir string; the \code{\link{file.path}} of the directory to save/read the files
 #' @param genome string; the desired genome. This should be available from BSgenome
@@ -125,7 +217,7 @@ load_ref_cpgs = function(dir, genome = c("BSgenome.Hsapiens.UCSC.hg19", "BSgenom
   return(readRDS(cpg_file))
 }
 
-#--- remove_bad_probes -----------------------------------------------------------------------------------------------
+#---- remove_bad_probes -------------------------------------------------------------------------------------------
 #' Removes cross-reactive or polymorphic CpG-matching probes. 
 #' @param probes character, list, GRanges; Input probes
 #' @param array string; Which array to use
@@ -154,7 +246,7 @@ remove_bad_probes = function(probes, array = c("450K","EPIC")) {
   return(invisible(probes))
 }
 
-#--- exportAnnoToBed -------------------------------------------------------------------------------------------------
+#---- exportAnnoToBed -------------------------------------------------------------------------------------------------
 #' Exports an annotation to bedgraph
 #' TODO: Add liftover support directly
 #' @param anno The probe annotation package
@@ -177,7 +269,7 @@ exportAnnoToBed <- function(anno,file,...) {
   invisible(return(TRUE))
 }
 
-# liftover_beds ---------------------------------------------------------------------------------------------------
+#---- liftover_beds ---------------------------------------------------------------------------------------------------
 #' @param files The files to convert
 #' @param chain The chain to use
 #' @param func Function to rename each file
@@ -214,7 +306,7 @@ liftover_beds <- function (files, chain, func = NULL, verbose = T) {
   invisible(return(TRUE))
 }
 
-#--- makeGRfromArrayProbes ----------------------------------------------------------------------------------
+#---- makeGRfromArrayProbes ----------------------------------------------------------------------------------
 #' Creates a \code{\link{GenomicRanges}} object from Illumina array probes
 #' @details Converts probe IDs from array annotation data into genomic positions. 
 #' @param array_anno Either the array data package off Bioconductor, or a custom data.frame consisting of probes in bedgraph format
@@ -261,7 +353,7 @@ makeGRfromArrayProbes <- function(array_anno, probes = NULL, id_col = "ID") {
   return(probe_anno)
 }
 
-#--- disjointWindow -----------------------------------------------------------------------------------------
+#---- disjointWindow -----------------------------------------------------------------------------------------
 #' Creates disjoint (non-overlapping) windows for all regions
 #' @details Creates windows for each input range. If multiple ranges overlap, the window will be shifted to fit the overlapping sites with a minimum of windows.  
 #' 
@@ -321,6 +413,13 @@ disjointWindow <- function(gr, window = 1000, neg.rm = T) {
   return(gr)
 }
 
+
+#' Reduces a GenomicRanges object, but keeps specified mcols() data. The data with be appended and added as a column in the reduced object. Wraps keepMcols().
+#' @param gr GenomicRanges; the object to reduce
+#' @param keep_col string; the column name in mcols() to retain during reducing
+#' @return GenomicRanges; the reduced object with columns for the kept data
+#' @export
+#' @examples
 reduceWithMcols <- function(gr, keep_col = "ID") {
   
   #- Input Validation --------------------------------------------------------------------------
@@ -338,8 +437,51 @@ reduceWithMcols <- function(gr, keep_col = "ID") {
 }  
 
 
-get_chains <- function(chain = NULL) {
+#---- keepMcols ---------------------------------------------------------------------------------------------------
+#' Does an operation on a GenomicRanges object but keeps mcols()
+#' @param gr GenomicRanges; the object to operate on
+#' @param op function; the function to do
+#' @param col string; the column name in mcols() to retain
+#' @return GenomicRanges; the transformed GR object with the retained mcols() data
+#' @export
+#' @examples
+keepMcols <- function(gr,op,col = NULL) {
   
+  out <- op(gr)
+  
+  if (!is.null(col)) {
+    overlaps <- as.data.table(findOverlaps(gr,out))
+    
+    if (length(gr) > length(out)) {
+      overlaps[, `:=` (mcols = unlist(mcols(gr)[col]))]
+      overlaps <- overlaps[, .(mcols = paste(mcols,collapse=",")), by = .(subjectHits)]
+      mcols(out)$ID <- unlist(overlaps[["mcols"]])
+      colnames(mcols(out)) = col
+    } else {
+      mcols(out)[col] <- mcols(gr)[col][overlaps$queryHits,]
+    }
+  }
+  
+  return(out)
+}
+
+
+#---- get_chains -------------------------------------------------------------------------------------------------
+#' Retrieves a chain from AnnotationHub for use in LiftOver
+#' @param chain Which chain to get. 
+#' @return chain; the conversion matrix for CpGs in different genome builds 
+#' @export
+#'
+#' @examples
+get_chains <- function(chain = c("hg19ToHg38","hg38ToHg19")) {
+
+  if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+  
+  BiocManager::install("AnnotationHub")
+  
+  chain <- .validateArg(chain,get_chains)
+    
   if (!exists("ah")) ah <- AnnotationHub()
   if (!exists("chains")) {
     chains <- query(ah , c("hg19","hg38", "chainfile"))
@@ -354,7 +496,6 @@ get_chains <- function(chain = NULL) {
 }
 
 
-# raw.idat.to.scMethrix -------------------------------------------------------------------------------------------
 getCellCount <- function(GEO, raw_dir, colData, cellTypes = c("CD8T","CD4T", "NK","Bcell","Mono","Gran"), 
                          array = c("IlluminaHumanMethylation450k",
                                    "IlluminaHumanMethylationEPIC",
@@ -386,30 +527,7 @@ getCellCount <- function(GEO, raw_dir, colData, cellTypes = c("CD8T","CD4T", "NK
   return(est)
 }
 
-keepMcols <- function(gr,op,col = NULL) {
-  
-  out <- op(gr)
-  
-  if (!is.null(col)) {
-    overlaps <- as.data.table(findOverlaps(gr,out))
-    
-    if (length(gr) > length(out)) {
-      overlaps[, `:=` (mcols = unlist(mcols(gr)[col]))]
-      overlaps <- overlaps[, .(mcols = paste(mcols,collapse=",")), by = .(subjectHits)]
-      mcols(out)$ID <- unlist(overlaps[["mcols"]])
-      colnames(mcols(out)) = col
-    } else {
-      mcols(out)[col] <- mcols(gr)[col][overlaps$queryHits,]
-    }
-  }
-  
-  return(out)
-}
-
-
-
-
-
+#---- start_time ------------------------------------------------------------------------------------------------
 #' Starts an internal stopwatch
 #' @details Save the current time to later use for split/lap and overall times
 #' @return NULL
@@ -423,6 +541,8 @@ start_time <- function() {
   invisible(NULL)
 }
 
+
+#---- split_time -------------------------------------------------------------------------------------------------
 #' Outputs the split/lap/iteration time
 #' @details Gets the stored elapsed \\code{\link{proc.time}} from either the initial
 #' \code{\link{start_time}} or the previous \code{split_time}
@@ -443,6 +563,8 @@ split_time <- function() {
   return(paste0(sprintf(time[[1]], fmt = '%#.2f'),"s"))
 }
 
+
+#---- stop_time --------------------------------------------------------------------------------------------------
 #' Stops an internal stopwatch and outputs overall time
 #' @details Gets the stored elapsed \code{proc.time()} from initial \code{\link{start_time}} to calculate
 #' overall runtime

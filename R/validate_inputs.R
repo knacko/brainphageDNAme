@@ -238,30 +238,3 @@
   
   return(max(min(parallel::detectCores(),n_threads),1))
 }
-
-#--- is.empty ---------------------------------------------------------------------------------------
-#' Checks to see if an object is NULL, NA, zero length, whitespace
-#' @param obj object; the object to check for emptiness
-#' @return integer; 1 if windows, or some number of threads between 1 and parallel::detectCores
-is.empty <- function(x, trim = TRUE, ...) {
-  if (length(x) <= 1) {
-    if (is.null(x))
-      return (TRUE)
-    if (length(x) == 0)
-      return (TRUE)
-    if (is.na(x) || is.nan(x))
-      return (TRUE)
-    if (is.character(x) && nchar(ifelse(trim, trim.space(x), x)) == 0)
-      return (TRUE)
-    if (is.logical(x) && !isTRUE(x))
-      return (TRUE)
-    if (is.numeric(x) && x == 0)
-      return (TRUE)
-    return (FALSE)
-  } else
-    sapply(x, is.empty, trim = trim, ...)
-}
-
-
-
-
