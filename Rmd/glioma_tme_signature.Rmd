@@ -1,9 +1,27 @@
+---
+title: "Glioma TIME signature matrix"
+author: "Andrew Lindsay"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true
+    number_sections: true
+---
+
+# Creating a glioma tumor immune microenvironment (TIME) cell signature matrix
+
+Setup the environment:
+
+```{r}
 home_dir <- "D:/Git/thesis_data/"
 mkdirs(home_dir)
 proms <- probes.ill
 useCairo <- T
+```
 
-# Create merged object to generate the signature matrix -----------------------------------------------------------
+Create merged object to generate the signature matrix
+
+```{r}
 exp_dir <- paste0(home_dir,"deconvolution/")
 exp_name <- "scm.deconvolution.base"
 exp_path <- paste0(exp_dir,exp_name,".rds")
@@ -22,8 +40,13 @@ exps <- c("singh","GSE35069","GSE49667","GSE66351",
 #cells <- c("Microglia", "Monocyte")
 
 scm <- get_data_set(exps, regions = "proms.hg38", merge=T, cells = cells)
+```
 
-# Do feature finder -----------------------------------------------------------------------------------------------
+## Feature selection:
+
+### Find significant features
+
+```{r}
 setwd(exp_dir)
 
 DMPs = 200
@@ -41,7 +64,11 @@ feats.top <- rowRanges(scm.features)
 saveRDS(feats.top,paste0(exp_dir,"methylCibersort_0.25_",DMPs,"_rowRanges.rds"))
 file.sigmtx <- list.files(exp_dir, full.names = TRUE, pattern = paste0(".*",DMPs,"_Signature.txt$"), ignore.case = T)
 file.features <- paste0("methylCibersort_0.25_",DMPS,"_rowRanges.rds")
+```
 
+### Generate cell spatial plot
+
+```{r}
 # Graph the features ----------------------------------------------------------------------------------------------
 scm.features <- dim_red_scMethrix(scm.features,type="tSNE",assay="impute",perplexity=65,max_iter=2000)
 glioma_tme_features_tSNE <- plot_dim_red(scm.features,"tSNE",color_anno="Cell",axis_labels=list(X="tSNE1",Y="tSNE2"),
@@ -59,6 +86,11 @@ if (useCairo) {
   glioma_tme_features_tSNE
   dev.off()
 } 
+```
+
+### Generate epigenetic heatmap
+
+```{r}
 
 generate_heatmap <- function(scm,assay = "score", grouping = NULL, n_cpg = NULL,...) {
   
@@ -96,8 +128,14 @@ if (useCairo) {
   draw(glioma_tme_features_hmap, padding = unit(c(2, 2, 10, 2), "mm"))
   dev.off()
 }
+```
 
-## Make a synthetic mix of GSE110554 --------------------------------------------------------------------------------
+## Evaluation signature matrix
+
+### Compare synthetic mix of pure samples from [GSE110554](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE110554):
+
+```{r}
+
 feats.top <- readRDS(file.features)
 scm <- get_data_set(c("GSE110554"), cells = cells)
 scm <- bin_scMethrix(scm,regions = feats.top,fill=T)
@@ -117,9 +155,9 @@ file.synmix <- list.files(getwd(), full.names = TRUE, pattern = ".*glioma_tme_sy
 file.synprop <- list.files(getwd(), full.names = TRUE, pattern = ".*glioma_tme_synth_prop.txt$", ignore.case = T)
 
 scm.synmix <- scm
+```
 
-
-## Test the signatures ---------------------------------------------------------------------------------------------
+```{r}
 sig.mtx = read.delim(file.sigmtx, row.names = 1, header = TRUE)
 syn.mix = read.delim(file.synmix, row.names = 1, header = TRUE, sep="\t")
 
@@ -131,8 +169,9 @@ results <- CIBERSORT(sig_matrix = sig.mtx,
                      QN = TRUE,
                      absolute = FALSE,
                      abs_method = 'sig.score')
+```
 
-# Plot the correlatiion -------------------------------------------------------------------------------------------
+```{r}
 props <- read.delim(file.synprop, header = TRUE,sep=" ")
 row.names(props) <- paste0("synth.",1:nrow(props))
 
@@ -165,8 +204,11 @@ if (useCairo) {
   glioma_tme_sigmtx_pure_corr
   dev.off()
 }
+```
 
-# Make synthetic mix of PBMC --------------------------------------------------------------------------------------
+### Compare PBMCs from [GSE112618](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE112618):
+
+```{r}
 feats.top <- readRDS(file.features)
 scm <- get_data_set(c("GSE112618"))
 scm <- bin_scMethrix(scm,regions = feats.top,fill=T)
@@ -184,8 +226,9 @@ results.pbmc <- CIBERSORT(sig_matrix = sig.mtx,
                      QN = FALSE,
                      absolute = FALSE,
                      abs_method = 'sig.score')
+```
 
-# Plot the correlatiion -------------------------------------------------------------------------------------------
+```{r}
 file.mixprop <- "D:\\Git\\thesis_data\\GSE112618\\GSE112618_cellmix.tsv"
 props <- read.delim(file.mixprop, header = TRUE,sep="\t",row.names=1)
 
@@ -257,4 +300,4 @@ if (useCairo) {
   glioma_tme_sigmtx_mixed_prop
   dev.off()
 }
-
+```
