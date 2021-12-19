@@ -14,9 +14,36 @@ Setup the environment:
 
 ```{r}
 home_dir <- "D:/Git/thesis_data/"
-mkdirs(home_dir)
-proms <- probes.ill
+script_dir <- paste0(getwd(),"/R/")
+image_dir <- paste0(getwd(),"/images/")
+
+data_dir <- paste0(getwd(),"/data/")
+dataset_dir <- paste0(data_dir,"/datasets/")
+exp_dir <- paste0(data_dir,"/experiments/")
+sig_dir <- paste0(data_dir,"/signatures/")
+
+mkdirs(home_dir, data_dir, image_dir, exp_dir, script_dir, dataset_dir, sig_dir)
+
+source(paste0(scripts_dir,"/setup_env.R"))
+setupEnv(script_dir, sig_dir)
+
+stopifnot(exists("probes"))
+stopifnot(exists("cell_types"))
+
+#proms <- probes.ill
 useCairo <- T
+#loadEnv()
+
+# scripts <- rev(list.files(script_dir, full.names = TRUE, ignore.case = T))
+# if (!is.null(scripts)) lapply(scripts,source)
+# 
+# source("D:/Git/monobrainDNAme/R/zzz.R")
+# source("D:/Git/monobrainDNAme/R/accessory_funcs.R")
+# source("D:/Git/monobrainDNAme/R/validate_inputs.R")
+# source("D:/Git/monobrainDNAme/R/raw_data_to_scMethrix.R")
+# source("D:/Git/monobrainDNAme/R/feature_selection.R")
+
+
 ```
 
 Create merged object to generate the signature matrix

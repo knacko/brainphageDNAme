@@ -6,3 +6,5 @@
 /GDCdata
 /MANIFEST.txt
 /Rmd/*.html
+/data
+!/data/signatures/PanGlioma_MethylationSignatures.xlsx
