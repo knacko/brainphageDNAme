@@ -10,7 +10,7 @@ output:
 
 # Creating a glioma tumor immune microenvironment (TIME) cell signature matrix
 
-Setup the environment:
+First, setup the environment. This gets all the directories, loads the scripts, and creates the necessary objects (cell types, probes, chains).
 
 ```{r}
 home_dir <- "D:/Git/thesis_data/"
@@ -46,13 +46,12 @@ useCairo <- T
 
 ```
 
-Create merged object to generate the signature matrix
+Next, create a merged object containing all the cells used to generate the signature matrix.
 
 ```{r}
-exp_dir <- paste0(home_dir,"deconvolution/")
-exp_name <- "scm.deconvolution.base"
-exp_path <- paste0(exp_dir,exp_name,".rds")
-mkdirs(exp_dir)
+curr_exp_dir <- paste0(exp_dir,"deconvolution/")
+curr_exp_name <- "glioma_tme_sigmtx"
+mkdirs(curr_exp_dir)
 
 cells <- c("Bcell", "CD4Tcell", "CD8Tcell", "Treg", "NKcell",
            "Microglia", "Dendritic", "Monocyte","Granulocyte", "Neuron", "Glia", "Glioma",
@@ -73,8 +72,10 @@ scm <- get_data_set(exps, regions = "proms.hg38", merge=T, cells = cells)
 
 ### Find significant features
 
+This uses methylCIBERSORT to identify differentially methylated probes (DMPs) that distinguish each cell type. See [here](https://github.com/dannlbol/mcibersort_scripts) for a description of the output files.
+
 ```{r}
-setwd(exp_dir)
+setwd(curr_exp_dir)
 
 DMPs = 200
 set.seed("123")
@@ -85,15 +86,19 @@ message("k = ",k)
 
 scm <- impute_regions(scm,k=k)
 names(rowRanges(scm)) <- paste0("rid_",1:nrow(scm))
-scm.features <- do_methylcibersort(scm, assay="impute",MaxDMPs = DMPs, deltaBeta = 0.25, output.dir = exp_dir)
+scm.features <- do_methylcibersort(scm, assay="impute",MaxDMPs = DMPs, deltaBeta = 0.25, output.dir = curr_exp_dir)
 metadata(scm.features)["top_features_selected"] <- DMPs
+
 feats.top <- rowRanges(scm.features)
-saveRDS(feats.top,paste0(exp_dir,"methylCibersort_0.25_",DMPs,"_rowRanges.rds"))
-file.sigmtx <- list.files(exp_dir, full.names = TRUE, pattern = paste0(".*",DMPs,"_Signature.txt$"), ignore.case = T)
+saveRDS(feats.top,paste0(curr_exp_dir, "methylCibersort_0.25_", DMPs, "_rowRanges.rds"))
+
+file.sigmtx <- list.files(curr_exp_dir, full.names = TRUE, pattern = paste0(".*",DMPs,"_Signature.txt$"), ignore.case = T)
 file.features <- paste0("methylCibersort_0.25_",DMPS,"_rowRanges.rds")
 ```
 
 ### Generate cell spatial plot
+
+This generate a dimensionality reduction of the signature matrix. It should have discrete groupings of each cell type, with super clusters of closely related cells (e.g., leukocytes).
 
 ```{r}
 # Graph the features ----------------------------------------------------------------------------------------------
@@ -108,7 +113,7 @@ glioma_tme_features_tSNE <- plot_dim_red(scm.features,"tSNE",color_anno="Cell",a
 glioma_tme_features_tSNE
 
 if (useCairo) {
-  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_features_tSNE_",get_timestamp(),".png"),
+  Cairo::Cairo(file=paste0(images_dir, curr_exp_name, "_tSNE_", get_timestamp(), ".png"),
                type="png", units="px", width=500, height=500, pointsize=24, dpi="auto")
   glioma_tme_features_tSNE
   dev.off()
@@ -116,6 +121,8 @@ if (useCairo) {
 ```
 
 ### Generate epigenetic heatmap
+
+This graphs the respective epigenome of each sample. Red is methylated and blue in unmethylated.
 
 ```{r}
 
@@ -150,7 +157,7 @@ glioma_tme_features_hmap <- generate_heatmap(scm.features,assay="impute")
 glioma_tme_features_hmap
 
 if (useCairo) {
-  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_features_hmap_",get_timestamp(),".png"),
+  Cairo::Cairo(file=paste0(images_dir, curr_exp_name, "_hmap_", get_timestamp(), ".png"),
                type="png", units="px", width=500, height=500, pointsize=20, dpi="auto")
   draw(glioma_tme_features_hmap, padding = unit(c(2, 2, 10, 2), "mm"))
   dev.off()
@@ -159,7 +166,9 @@ if (useCairo) {
 
 ## Evaluation signature matrix
 
-### Compare synthetic mix of pure samples from [GSE110554](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE110554):
+### Compare synthetic mix of pure samples from [GSE110554](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE110554)
+
+Synthetic mixtures for known proportions of pure samples are generated and compared to the signature matrix from above. If the signature matrix is accurate, CIBERSORT should show similar proportions of cell types in each synthetic mixture.
 
 ```{r}
 
@@ -226,14 +235,16 @@ glioma_tme_sigmtx_pure_corr <- ggplot(syn.stats, aes(x=X, y=Y,fill = Cell)) + ge
 glioma_tme_sigmtx_pure_corr
 
 if (useCairo) {
-  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_pure_corr_",get_timestamp(),".png"),
+  Cairo::Cairo(file=paste0(images_dir,curr_exp_name,"_pure_sample_correlation_",get_timestamp(),".png"),
                type="png", units="px", width=500, height=300, pointsize=20, dpi="auto")
   glioma_tme_sigmtx_pure_corr
   dev.off()
 }
 ```
 
-### Compare PBMCs from [GSE112618](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE112618):
+### Compare PBMCs from [GSE112618](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE112618)
+
+Similar to above, further evaluation is done with PBMC samples. Instead of a synthetic mixture of cells, these samples have known cell proportions as per flow cytometry.
 
 ```{r}
 feats.top <- readRDS(file.features)
@@ -256,7 +267,7 @@ results.pbmc <- CIBERSORT(sig_matrix = sig.mtx,
 ```
 
 ```{r}
-file.mixprop <- "D:\\Git\\thesis_data\\GSE112618\\GSE112618_cellmix.tsv"
+file.mixprop <- paste0(dataset_dir,"\\GSE112618\\GSE112618_cellmix.tsv")
 props <- read.delim(file.mixprop, header = TRUE,sep="\t",row.names=1)
 
 stats <- results[,(ncol(results)-2):ncol(results)]
@@ -282,7 +293,7 @@ glioma_tme_sigmtx_mixed_corr <- ggplot(syn.stats, aes(x=X, y=Y,fill = Cell)) + g
 glioma_tme_sigmtx_mixed_corr
 
 if (useCairo) {
-  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_mixed_corr_",get_timestamp(),".png"),
+  Cairo::Cairo(file=paste0(images_dir,curr_exp_name,"_mixed_sample_correlation_",get_timestamp(),".png"),
                type="png", units="px", width=500, height=300, pointsize=20, dpi="auto")
   glioma_tme_sigmtx_mixed_corr
   dev.off()
@@ -322,7 +333,7 @@ glioma_tme_sigmtx_mixed_prop <- ggplot(mix.melt, aes(fill=Cell, y=Value, x=Type)
 glioma_tme_sigmtx_mixed_prop
 
 if (useCairo) {
-  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_mixed_prop_",get_timestamp(),".png"),
+  Cairo::Cairo(file=paste0(images_dir,curr_exp_name,"_mixed_sample_prop_",get_timestamp(),".png"),
                type="png", units="px", width=600, height=200, pointsize=20, dpi="auto")
   glioma_tme_sigmtx_mixed_prop
   dev.off()
