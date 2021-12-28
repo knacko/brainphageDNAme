@@ -477,34 +477,7 @@ keepMcols <- function(gr,op,col = NULL) {
 }
 
 
-#---- get_chains -------------------------------------------------------------------------------------------------
-#' Retrieves a chain from AnnotationHub for use in LiftOver
-#' @param chain Which chain to get. 
-#' @return chain; the conversion matrix for CpGs in different genome builds 
-#' @export
-#'
-#' @examples
-get_chains <- function(chain = c("hg19ToHg38","hg38ToHg19")) {
 
-  if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-  
-  BiocManager::install("AnnotationHub")
-  
-  chain <- .validateArg(chain,get_chains)
-    
-  if (!exists("ah")) ah <- AnnotationHub()
-  if (!exists("chains")) {
-    chains <- query(ah , c("hg19","hg38", "chainfile"))
-    chains <- list("hg19ToHg38" = chains[['AH14150']], "hg38ToHg19" = chains[['AH14108']])
-    assign("chains", chains, envir = .GlobalEnv)
-  }
-
-  if (is.null(chain)) return(invisible(TRUE))
-  
-  if (chain == "hg19ToHg38") return(chains[["hg19ToHg38"]])
-  if (chain == "hg38ToHg19") return(chains[["hg38ToHg19"]])
-}
 
 
 getCellCount <- function(GEO, raw_dir, colData, cellTypes = c("CD8T","CD4T", "NK","Bcell","Mono","Gran"), 

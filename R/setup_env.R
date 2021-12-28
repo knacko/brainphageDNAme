@@ -28,8 +28,8 @@ setupEnv <- function(script_dir, sig_dir) {
   #source("D:/Git/monobrainDNAme/R/load_data_sets.R")
   
   # Get liftover chains ---------------------------------------------------------------------------------------------
-  chains <<- get_chains()
-  
+  chains <- get_chains()
+
   # Get pan-glioma probe list (hg19) --------------------------------------------------------------------------------
   file <- "https://api.gdc.cancer.gov/data/d9027b0c-8d24-47ff-98fb-4066852e3ab3"
   filename <- paste0(sig_dir,"/PanGlioma_MethylationSignatures.xlsx")
@@ -110,10 +110,10 @@ setupEnv <- function(script_dir, sig_dir) {
   
   probes.prom <- list(proms.hg38 = proms.hg38, proms.hg19 = proms.hg19)
   
-  probes <<- append(probes,probes.prom)
+  probes <- append(probes,probes.prom)
   
   # Setup the cell type lists ---------------------------------------------------------------------------------------
-  cell_types <<- list(all = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
+  cell_types <- list(all = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
                      immune = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","Granulocyte","Treg","Dendritic"),
                      brain = c("Microglia","Inf.microglia","Inf.macrophage","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm"),
                      progenitor = c("CMP","GMP","cMOP","HSCb","HSCm","MPPb","MPPm"),
@@ -124,4 +124,40 @@ setupEnv <- function(script_dir, sig_dir) {
   source(paste0(script_dir,"/load_data_sets.R"))
   # Load up various data --------------------------------------------------------------------------------------------
   #scm.big <- scMethrix::load_scMethrix("D:/Git/thesis_data/GSE151506/exp/")
+  
+  probes <<- probes
+  cell_types <<- cell_types
+  chains <<- chains
+  
+}
+
+#---- get_chains -------------------------------------------------------------------------------------------------
+#' Retrieves a chain from AnnotationHub for use in LiftOver
+#' @param chain Which chain to get. 
+#' @return chain; the conversion matrix for CpGs in different genome builds 
+#' @export
+#'
+#' @examples
+get_chains <- function(){ #chain = c("hg19ToHg38","hg38ToHg19")) {
+  
+  if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+  
+  BiocManager::install("AnnotationHub")
+  
+  # chain <- .validateArg(chain,get_chains)
+  
+  if (!exists("ah")) ah <- AnnotationHub()
+  # if (!exists("chains")) {
+    chains <- query(ah , c("hg19","hg38", "chainfile"))
+    chains <- list("hg19ToHg38" = chains[['AH14150']], "hg38ToHg19" = chains[['AH14108']])
+    #assign("chains", chains, envir = .GlobalEnv)
+  # }
+  
+  return(chains)
+  
+  # if (is.null(chain)) return(invisible(TRUE))
+  # 
+  # if (chain == "hg19ToHg38") return(chains[["hg19ToHg38"]])
+  # if (chain == "hg38ToHg19") return(chains[["hg38ToHg19"]])
 }

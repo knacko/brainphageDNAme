@@ -109,7 +109,7 @@
       } else if (type == "Distance") {
         valid <- is(input,"dist")
       } else if (type == "Chain") {
-        valid <- (class(input) == "Chain")
+        valid <- is(input,"Chain")
       }
     }
     if (valid) return(invisible(TRUE))

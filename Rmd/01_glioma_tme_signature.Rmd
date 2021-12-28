@@ -12,43 +12,31 @@ output:
 
 First, setup the environment. This gets all the directories, loads the scripts, and creates the necessary objects (cell types, probes, chains).
 
-```{r}
-home_dir <- "D:/Git/thesis_data/"
-script_dir <- paste0(getwd(),"/R/")
-image_dir <- paste0(getwd(),"/images/")
+```{r, include=FALSE}
+proj_dir <- dirname(getwd())
+script_dir <- paste0(proj_dir,"/R/")
+image_dir <- paste0(proj_dir,"/images/")
 
-data_dir <- paste0(getwd(),"/data/")
+data_dir <- paste0(proj_dir,"/data/")
 dataset_dir <- paste0(data_dir,"/datasets/")
 exp_dir <- paste0(data_dir,"/experiments/")
 sig_dir <- paste0(data_dir,"/signatures/")
 
 mkdirs(home_dir, data_dir, image_dir, exp_dir, script_dir, dataset_dir, sig_dir)
 
-source(paste0(scripts_dir,"/setup_env.R"))
+source(paste0(script_dir,"/setup_env.R"))
 setupEnv(script_dir, sig_dir)
 
 stopifnot(exists("probes"))
 stopifnot(exists("cell_types"))
+stopifnot(exists("chains"))
 
-#proms <- probes.ill
 useCairo <- T
-#loadEnv()
-
-# scripts <- rev(list.files(script_dir, full.names = TRUE, ignore.case = T))
-# if (!is.null(scripts)) lapply(scripts,source)
-# 
-# source("D:/Git/monobrainDNAme/R/zzz.R")
-# source("D:/Git/monobrainDNAme/R/accessory_funcs.R")
-# source("D:/Git/monobrainDNAme/R/validate_inputs.R")
-# source("D:/Git/monobrainDNAme/R/raw_data_to_scMethrix.R")
-# source("D:/Git/monobrainDNAme/R/feature_selection.R")
-
-
 ```
 
 Next, create a merged object containing all the cells used to generate the signature matrix.
 
-```{r}
+```{r, echo=c(7,8)}
 curr_exp_dir <- paste0(exp_dir,"deconvolution/")
 curr_exp_name <- "glioma_tme_sigmtx"
 mkdirs(curr_exp_dir)
@@ -66,6 +54,8 @@ exps <- c("singh","GSE35069","GSE49667","GSE66351",
 #cells <- c("Microglia", "Monocyte")
 
 scm <- get_data_set(exps, regions = "proms.hg38", merge=T, cells = cells)
+scm
+#table(colData(scm)$cell_type)
 ```
 
 ## Feature selection:
