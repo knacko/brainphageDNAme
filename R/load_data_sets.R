@@ -1,57 +1,50 @@
-home_dir <- "D:/Git/thesis_data/"
-cpg_dir <- "D:/Git/sampleData/ref_cpgs/"
-chain_dir <- "D:/Git/thesis_data/chains/"
+dataset_dir <- "D:/Git/thesis_data/"
 #probe.set <- probes.ill#probes.ill[["i450k.hg38.win.red"]]
-chain <- chains[["hg19ToHg38"]]
-cell.list <- cell_types[["all"]]
 
-delete_data_set <- function(...) {
-  Exps <- unlist(...)
-  sapply(Exps, function (Exp) {
-    file.remove(paste0(home_dir, Exp, "/", "exp/", "scm.", Exp, ".rds"))
-  })
-}
 
-soft = TRUE
+# delete_data_set <- function(...) {
+#   Exps <- unlist(...)
+#   sapply(Exps, function (Exp) {
+#     file.remove(paste0(dataset_dir, Exp, "/", "exp/", "scm.", Exp, ".rds"))
+#   })
+# }
 
-type <- list(singh =    c(!soft, NA,   "hg38", "EPIC"),
-             GSE35069 =  c(soft, "soft", "hg19", "n450k"),
-             GSE41826 =  c(soft, "soft", "hg19", "n450k"),
-             GSE49618 =  c(soft, "idat", "hg19", "n450k"),
-             GSE49667 =  c(soft, "soft", "hg19", "n450k"),
-             GSE50798 =  c(soft, "soft", "hg19", "n450k"),
-             GSE61195 =  c(soft, "soft", "hg19", "n450k"),
-             GSE63409 =  c(soft, "idat", "hg19", "n450k"),
-             GSE66351 =  c(soft, "idat", "hg19", "n450k"),
-             GSE83458 =  c(soft, "soft", "hg19", "n450k"),
-             GSE87196 =  c(soft, "bed",  "hg38",  NA),
-             GSE88824 =  c(soft, "idat", "hg19", "n450k"),
-             #GSE96612 =  c(soft, "bed", "hg19",  NULL),
-             GSE98203 =  c(soft, "idat", "hg19", "n450k"),
-             GSE103211 = c(soft, "soft", "hg19", "n450k"),
-             GSE103659 = c(soft, "soft", "hg19", "n450k"),
-             GSE104293 = c(soft, "idat", "hg19", "n450k"),
-             GSE110554 = c(soft, "idat", "hg19", "EPIC"),
-             GSE112618 = c(soft, "idat", "hg19", "EPIC"),
-             GSE121483 = c(soft, "idat", "hg19", "EPIC"),
-             GSE128654 = c(soft, "idat", "hg19", "n450k"),
-             GSE144804 = c(soft, "idat", "hg19", "EPIC"),
-             #GSE151506 = c(soft, "bed",  NULL),
-             #GSE151506.mgsig = c(!soft, "bed",  "hg38", NA),
-             GSE164149 = c(soft, "idat", "hg19", "EPIC"),
-             GSE166844 = c(soft, "var", "hg19",  "EPIC")
-             #test = c()
-)
+get_data_set <- function(dataset_dir, GEO = names(type), regions = "all", genome = "hg38", assign.it = F, merge = F, cells = NULL) {
 
-#get_data_set("GSE87196",region="all")
-#get_data_set(names(type),region="proms.hg38")
-#get_data_set(names(type),region="proms.hg38")
-
-get_data_set <- function(GEO = names(type), regions = "all", genome = "hg38", assign.it = F, merge = F, cells = NULL) {
-
+  soft = TRUE
+  
+  type <- list(singh =    c(!soft, NA,   "hg38", "EPIC"),
+               GSE35069 =  c(soft, "soft", "hg19", "n450k"),
+               GSE41826 =  c(soft, "soft", "hg19", "n450k"),
+               GSE49618 =  c(soft, "idat", "hg19", "n450k"),
+               GSE49667 =  c(soft, "soft", "hg19", "n450k"),
+               GSE50798 =  c(soft, "soft", "hg19", "n450k"),
+               GSE61195 =  c(soft, "soft", "hg19", "n450k"),
+               GSE63409 =  c(soft, "idat", "hg19", "n450k"),
+               GSE66351 =  c(soft, "idat", "hg19", "n450k"),
+               GSE83458 =  c(soft, "soft", "hg19", "n450k"),
+               GSE87196 =  c(soft, "bed",  "hg38",  NA),
+               GSE88824 =  c(soft, "idat", "hg19", "n450k"),
+               #GSE96612 =  c(soft, "bed", "hg19",  NULL),
+               GSE98203 =  c(soft, "idat", "hg19", "n450k"),
+               GSE103211 = c(soft, "soft", "hg19", "n450k"),
+               GSE103659 = c(soft, "soft", "hg19", "n450k"),
+               GSE104293 = c(soft, "idat", "hg19", "n450k"),
+               GSE110554 = c(soft, "idat", "hg19", "EPIC"),
+               GSE112618 = c(soft, "idat", "hg19", "EPIC"),
+               GSE121483 = c(soft, "idat", "hg19", "EPIC"),
+               GSE128654 = c(soft, "idat", "hg19", "n450k"),
+               GSE144804 = c(soft, "idat", "hg19", "EPIC"),
+               #GSE151506 = c(soft, "bed",  NULL),
+               #GSE151506.mgsig = c(!soft, "bed",  "hg38", NA),
+               GSE164149 = c(soft, "idat", "hg19", "EPIC"),
+               GSE166844 = c(soft, "var", "hg19",  "EPIC")
+               #test = c()
+  )
+  
   if (length(GEO) > 1) {
     
-    exps <- lapply(GEO,get_data_set,genome = genome, cells = cells, regions = regions)
+    exps <- lapply(GEO,get_data_set,dataset_dir = dataset_dir, genome = genome, cells = cells, regions = regions)
     names(exps) <- GEO
 
     if (assign.it || !merge) return(exps)
@@ -78,7 +71,7 @@ get_data_set <- function(GEO = names(type), regions = "all", genome = "hg38", as
     
     message("Getting ",GEO)
 
-    base_dir <- paste0(home_dir, GEO, "/")
+    base_dir <- paste0(dataset_dir, GEO, "/")
     exp_dir <- paste0(base_dir, "exp/")
     exp_name <- paste0(c("scm",GEO,genome,regions), collapse=".")
     exp_all <- paste0(exp_dir,"scm.",GEO,".",src_genome,".all.rds")
@@ -353,7 +346,7 @@ get_data_set <- function(GEO = names(type), regions = "all", genome = "hg38", as
 
       if (regions != "all" || genome != src_genome) {
         
-        scm <- standardize.scMethrix(scm, GEO = GEO, src_genome = src_genome, out_genome = genome,  regions = probes[[regions]])
+        scm <- standardize.scMethrix(scm, GEO = GEO, src_genome = src_genome, out_genome = genome,  regions = get_probes[[regions]])
         scm <- scMethrix::save_scMethrix(scm, dest = exp_path)
       }
     } else {

@@ -22,7 +22,7 @@ dataset_dir <- paste0(data_dir,"/datasets/")
 exp_dir <- paste0(data_dir,"/experiments/")
 sig_dir <- paste0(data_dir,"/signatures/")
 
-mkdirs(home_dir, data_dir, image_dir, exp_dir, script_dir, dataset_dir, sig_dir)
+#mkdirs(home_dir, data_dir, image_dir, exp_dir, script_dir, dataset_dir, sig_dir)
 
 source(paste0(script_dir,"/setup_env.R"))
 setupEnv(script_dir, sig_dir)
@@ -53,7 +53,7 @@ exps <- c("singh","GSE35069","GSE49667","GSE66351",
 
 #cells <- c("Microglia", "Monocyte")
 
-scm <- get_data_set(exps, regions = "proms.hg38", merge=T, cells = cells)
+scm <- get_data_set(dataset_dir = dataset_dir, GEO = exps, regions = "proms.hg38", merge=T, cells = cells)
 scm
 #table(colData(scm)$cell_type)
 ```

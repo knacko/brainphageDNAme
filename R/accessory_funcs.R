@@ -13,9 +13,9 @@ standardize.scMethrix <- function(scm, GEO, src_genome=NULL, out_genome=NULL, re
   
   if (!is.null(src_genome) && !is.null(out_genome)) {
     if (src_genome == "hg19" && out_genome == "hg38") {
-      scm <- liftover_CpGs(scm,get_chains("hg19ToHg38"),target_genome = "hg38")
+      scm <- liftover_CpGs(scm,get_chains()[["hg19ToHg38"]],target_genome = "hg38")
     } else if (src_genome == "hg38" && out_genome == "hg19" ) {
-      scm <- liftover_CpGs(scm,get_chains("hg38ToHg19"),target_genome = "hg19")
+      scm <- liftover_CpGs(scm,get_chains()[["hg38ToHg19"]],target_genome = "hg19")
     }
   }
   
