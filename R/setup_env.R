@@ -8,11 +8,14 @@
 setupEnv <- function(script_dir, sig_dir) {
 
   list.of.packages <- c("DMRcate","minfi","data.table","scMethrix","minfiData","minfiDataEPIC","GEOquery","testthat","stringr","IlluminaHumanMethylation450kanno.ilmn12.hg19","IlluminaHumanMethylation27kanno.ilmn12.hg19", "IlluminaHumanMethylationEPICanno.ilm10b4.hg19","openxlsx","AnnotationHub","future","ComplexHeatmap","ggplot2","ggforce","filesstrings","tibble","e1071","parallel","preprocessCore","ggpubr","cluster","TCGAbiolinks")
+  
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+  
   if(length(new.packages)) {
     install.packages(new.packages)
     BiocManager::install(new.packages)
   }
+  
   status <- lapply(list.of.packages, require, character.only = TRUE)
   names(status) <- list.of.packages
   suppressWarnings(if (!all(status)) status[which(status==FALSE)])
@@ -31,7 +34,6 @@ setupEnv <- function(script_dir, sig_dir) {
   chains <<- get_chains()
   probes <<- get_probes()
   cell_types <<- get_cell_types()
-
 }
 
 #---- get_chains -------------------------------------------------------------------------------------------------
@@ -42,20 +44,23 @@ setupEnv <- function(script_dir, sig_dir) {
 #' @examples
 get_chains <- function() { #chain = c("hg19ToHg38","hg38ToHg19")) {
   
-  if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-  
-  BiocManager::install("AnnotationHub")
-  
-  # chain <- .validateArg(chain,get_chains)
-  
-  if (!exists("ah")) ah <- AnnotationHub()
   if (!exists("chains")) {
+  
+    if (!requireNamespace("BiocManager", quietly = TRUE))
+      install.packages("BiocManager")
+    
+    BiocManager::install("AnnotationHub")
+    
+    # chain <- .validateArg(chain,get_chains)
+    
+    if (!exists("ah")) ah <- AnnotationHub()
+  
     chains <- query(ah , c("hg19","hg38", "chainfile"))
     chains <- list("hg19ToHg38" = chains[['AH14150']], "hg38ToHg19" = chains[['AH14108']])
     #assign("chains", chains, envir = .GlobalEnv)
+    
   }
-  
+
   return(chains)
   
   # if (is.null(chain)) return(invisible(TRUE))
@@ -164,7 +169,7 @@ get_probes <- function() {
 #' @export
 get_cell_types <- function() {
   
-  if (!exists("get_cell_types")) {
+  if (!exists("cell_types")) {
     cell_types <- list(all = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","WholeBlood","Granulocyte","Endothelial","Immune","CMP","GMP","cMOP","Ly6C","HSCb","HSCm","MPPb","MPPm","Microglia","Inf.microglia","Inf.macrophage","Treg","ImmMix","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm","CLP","Dendritic"),
                        immune = c("NKcell","Bcell","CD4Tcell","CD8Tcell","Monocyte","Granulocyte","Treg","Dendritic"),
                        brain = c("Microglia","Inf.microglia","Inf.macrophage","Ini.Glioma","Glioma","Neuron","Glia","GBM-IDH","GBM-WT","GBM-imm"),

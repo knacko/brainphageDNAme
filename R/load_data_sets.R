@@ -1,7 +1,3 @@
-dataset_dir <- "D:/Git/thesis_data/"
-#probe.set <- probes.ill#probes.ill[["i450k.hg38.win.red"]]
-
-
 # delete_data_set <- function(...) {
 #   Exps <- unlist(...)
 #   sapply(Exps, function (Exp) {
@@ -324,7 +320,7 @@ get_data_set <- function(dataset_dir, GEO = names(type), regions = "all", genome
           colData <- data.frame(row.names = names(soft@gsms), Cell = cell)
           if (!is.null(cd)) colData <- transform(merge(colData,cd,by="row.names"), row.names=Row.names, Row.names=NULL)
           if (length(remove_idx) != 0) colData <- colData[-remove_idx, , drop = FALSE]
-          stopifnot(all(colData$cell %in% cell_types))  
+          stopifnot(all(colData$cell %in% get_cell_types()$all))
 
           if (import_type == "idat") {
             scm <- raw.idat.to.scMethrix(GEO = GEO, raw_dir = raw_dir, colData = colData, array = array)
@@ -346,7 +342,7 @@ get_data_set <- function(dataset_dir, GEO = names(type), regions = "all", genome
 
       if (regions != "all" || genome != src_genome) {
         
-        scm <- standardize.scMethrix(scm, GEO = GEO, src_genome = src_genome, out_genome = genome,  regions = get_probes[[regions]])
+        scm <- standardize.scMethrix(scm, GEO = GEO, src_genome = src_genome, out_genome = genome,  regions = get_probes()[[regions]])
         scm <- scMethrix::save_scMethrix(scm, dest = exp_path)
       }
     } else {
