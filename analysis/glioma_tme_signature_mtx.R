@@ -54,7 +54,7 @@ glioma_tme_features_tSNE <- plot_dim_red(scm.features,"tSNE",color_anno="Cell",a
 glioma_tme_features_tSNE
 
 if (useCairo) {
-  Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\glioma_tme_features_tSNE.png",
+  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_features_tSNE_",get_timestamp(),".png"),
                type="png", units="px", width=500, height=500, pointsize=24, dpi="auto")
   glioma_tme_features_tSNE
   dev.off()
@@ -91,7 +91,7 @@ glioma_tme_features_hmap <- generate_heatmap(scm.features,assay="impute")
 glioma_tme_features_hmap
 
 if (useCairo) {
-  Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\glioma_tme_features_hmap.png",
+  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_features_hmap_",get_timestamp(),".png"),
                type="png", units="px", width=500, height=500, pointsize=20, dpi="auto")
   draw(glioma_tme_features_hmap, padding = unit(c(2, 2, 10, 2), "mm"))
   dev.off()
@@ -160,7 +160,7 @@ glioma_tme_sigmtx_pure_corr <- ggplot(syn.stats, aes(x=X, y=Y,fill = Cell)) + ge
 glioma_tme_sigmtx_pure_corr
 
 if (useCairo) {
-  Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_pure_corr.png",
+  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_pure_corr_",get_timestamp(),".png"),
                type="png", units="px", width=500, height=300, pointsize=20, dpi="auto")
   glioma_tme_sigmtx_pure_corr
   dev.off()
@@ -212,7 +212,7 @@ glioma_tme_sigmtx_mixed_corr <- ggplot(syn.stats, aes(x=X, y=Y,fill = Cell)) + g
 glioma_tme_sigmtx_mixed_corr
 
 if (useCairo) {
-  Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_mixed_corr.png",
+  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_mixed_corr_",get_timestamp(),".png"),
                type="png", units="px", width=500, height=300, pointsize=20, dpi="auto")
   glioma_tme_sigmtx_mixed_corr
   dev.off()
@@ -252,7 +252,7 @@ glioma_tme_sigmtx_mixed_prop <- ggplot(mix.melt, aes(fill=Cell, y=Value, x=Type)
 glioma_tme_sigmtx_mixed_prop
 
 if (useCairo) {
-  Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_mixed_prop.png",
+  Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\glioma_tme_sigmtx_mixed_prop_",get_timestamp(),".png"),
                type="png", units="px", width=600, height=200, pointsize=20, dpi="auto")
   glioma_tme_sigmtx_mixed_prop
   dev.off()

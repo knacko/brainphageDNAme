@@ -68,11 +68,7 @@ lapply(c("tSNE","UMAP","PCA"), function(dim_red) {
   print(dimred)
 })
 
-  
-  
-  
-  
-Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\microglia_selection2.png",
+Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\microglia_selection2_",get_timestamp(),".png"),
       type="png",
       units="px", 
       width=300, 
@@ -190,7 +186,7 @@ generate_heatmap(scm,assay="impute", n_cpg =  5000)
 
 
 
-Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\microglia_sig.png",
+Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\microglia_sig_",get_timestamp(),".png"),
              type="png",
              units="px", 
              width=1025, 
@@ -231,7 +227,7 @@ hm <- generate_heatmap(scm, n_cpg =  5000)
 hm
 
 
-Cairo::Cairo(file="D:\\Documents\\School\\Thesis\\Report\\microglia_heatmap.png",
+Cairo::Cairo(file=paste0("D:\\Documents\\School\\Thesis\\Report\\microglia_heatmap_",get_timestamp(),".png"),
              type="png",
              units="px", 
              width=300, 

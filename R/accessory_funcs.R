@@ -80,6 +80,17 @@ get_sample_name = function(s) {
   return(tools::file_path_sans_ext(basename(s)))
 }
 
+#---- get_timestamp ----------------------------------------------------------------------------------------------------
+#' Formats current time into a string
+#' @return string; the current time
+#' @export
+get_timestamp <- function() {
+  ts <- Sys.time()
+  ts <- str_replace_all(ts,":","-")
+  ts <- str_replace_all(ts," ","_")
+}
+
+
 #---- remove_col ------------------------------------------------------------------------------------------------------
 #' Remove a sample from an scMethrix object
 #' @param scm scMethrix; an scMethrix object
